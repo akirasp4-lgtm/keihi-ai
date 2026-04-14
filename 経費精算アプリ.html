@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>経費精算アプリ（AI自動入力版）</title>
+<style>
+:root {
+  --primary: #2563eb; --primary-light: #eff6ff; --success: #16a34a; --success-light: #f0fdf4;
+  --danger: #dc2626; --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+  --gray-400: #9ca3af; --gray-500: #6b7280; --gray-800: #1f2937; 
+  --shadow: 0 1px 3px rgba(0,0,0,.1);
+  --r: 10px; --bottom-nav-h: 64px; --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-800);min-height:100vh;padding-bottom:calc(var(--bottom-nav-h) + var(--safe-bottom))}
+
+.app-header{background:white;border-bottom:1px solid var(--gray-200);padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.app-title{font-size:17px;font-weight:700;color:var(--primary)}
+
+.main{max-width:640px;margin:0 auto;padding:16px 12px;display:flex;flex-direction:column;gap:14px}
+.card{background:white;border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;padding:16px;margin-bottom:14px}
+
+.form-label{display:flex;justify-content:space-between;align-items:flex-end;font-size:11px;font-weight:700;color:var(--gray-500);margin-bottom:4px;text-transform:uppercase}
+.form-label span.req::after{content:"*";color:var(--danger);margin-left:2px}
+
+.form-control{width:100%;padding:12px;border:1.5px solid var(--gray-200);border-radius:6px;font-size:16px;outline:none;background:white;margin-bottom:10px;font-family:inherit;transition:opacity 0.2s;}
+.form-control:focus{border-color:var(--primary)}
+.form-control:disabled{background-color:var(--gray-100);opacity:0.7;}
+
+.capture-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.capture-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:20px 10px;border:2px dashed var(--gray-300);border-radius:var(--r);background:var(--gray-50);cursor:pointer;position:relative}
+.capture-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+.preview-wrap{display:none}
+.preview-wrap.show{display:block}
+.receipt-thumb{width:100%;border-radius:6px;border:2px solid var(--gray-200);overflow:hidden;margin-bottom:14px;background:#000}
+.receipt-thumb img{width:100%;max-height:300px;object-fit:contain;display:block;margin:0 auto}
+
+.btn{width:100%;padding:14px;border:none;border-radius:6px;font-size:15px;font-weight:700;cursor:pointer}
+.btn-success{background:var(--success);color:white}
+.btn-primary{background:var(--primary);color:white}
+.btn-ghost{background:transparent;color:var(--gray-600);border:1px solid var(--gray-200)}
+
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--bottom-nav-h) + var(--safe-bottom));background:white;border-top:1px solid var(--gray-200);display:flex;z-index:200}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--gray-400);background:none;border:none}
+.nav-btn.active{color:var(--primary)}
+
+.expense-card{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid var(--gray-100)}
+.cat-badge{font-size:10px;padding:2px 6px;border-radius:10px;background:var(--gray-100)}
+
+.genba-section { background: #f0f7ff; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1.5px solid #bfdbfe; }
+
+/* タブの切り替え用 */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* AI関連のデザイン */
+.api-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-bottom: 8px; display: inline-block; }
+.api-off { background: var(--gray-200); color: var(--gray-500); }
+.api-on { background: var(--success-light); color: var(--success); }
+
+.ai-status-bar { display: none; padding: 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; font-weight: bold; text-align: left; line-height: 1.5; }
+.ai-status-bar.loading { display: block; background: var(--primary-light); color: var(--primary); border: 1px solid #bfdbfe;}
+.ai-status-bar.error { display: block; background: #fee2e2; color: var(--danger); border: 1px solid #fca5a5; }
+.ai-status-bar.success { display: block; background: var(--success-light); color: var(--success); border: 1px solid #bbf7d0; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-title">📝 経費精算アプリ <span style="font-size:10px; color:#666; font-weight:normal;">(AI版)</span></div>
+</header>
+
+<main class="main">
+
+  <div class="card">
+    <label class="form-label"><span class="req">👤 氏名</span></label>
+    <input type="text" class="form-control" id="userName" placeholder="山田 太郎" oninput="saveConfig()">
+    
+    <details id="apiConfigDetails">
+      <summary style="font-size: 12px; color: var(--gray-500); cursor: pointer; margin-top: 5px;">⚙️ AI自動入力の設定</summary>
+      <div style="padding-top: 10px;">
+        <div id="apiStatusBadge" class="api-badge api-off">AI未設定</div>
+        <label class="form-label"><span>Gemini APIキー</span></label>
+        <input type="password" class="form-control" id="apiKey" placeholder="AIza..." oninput="saveConfig()">
+        <p style="font-size: 11px; color: var(--gray-500);">※キーはスマホ内部にのみ保存されます。誰にも共有されません。</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="tab-panel active" id="panel-input">
+    <div class="card">
+      <div id="uploadSection">
+        <div class="capture-btns">
+          <label class="capture-btn"><input type="file" accept="image/*" capture="environment" onchange="handleFile(this.files[0])">📸 レシート撮影</label>
+          <label class="capture-btn"><input type="file" accept="image/*" onchange="handleFile(this.files[0])">🖼️ 写真から選ぶ</label>
+        </div>
+      </div>
+
+      <div id="aiStatusBar" class="ai-status-bar"></div>
+
+      <div class="preview-wrap" id="previewWrap">
+        <div class="receipt-thumb"><img id="receiptImg" src=""></div>
+        <div class="form-grid" id="formGrid">
+          
+          <label class="form-label"><span class="req">📅 日付</span></label>
+          <input type="date" class="form-control" id="fDate">
+          
+          <label class="form-label"><span class="req">💴 金額（税込）</span></label>
+          <input type="number" class="form-control" id="fAmount" placeholder="0" inputmode="numeric">
+          
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label class="form-label"><span>📊 税率</span></label>
+              <select class="form-control" id="fTax">
+                <option value="10">10%</option>
+                <option value="8">軽減8%</option>
+                <option value="0">対象外</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label"><span>📁 項目</span></label>
+              <select class="form-control" id="fCategory">
+                <option value="駐車場代">🚗 駐車場代</option>
+                <option value="仕入高">🛠️ 仕入高</option>
+                <option value="ガソリン">⛽ ガソリン</option>
+                <option value="消耗品費">📦 消耗品費</option>
+                <option value="事務用品">🖊️ 事務用品</option>
+                <option value="運賃">🚚 運賃</option>
+                <option value="その他交通費">🚕 交通費</option>
+                <option value="会議費">☕ 会議費</option>
+                <option value="交際費">🤝 交際費</option>
+                <option value="水道光熱">💡 水道光熱</option>
+                <option value="租税公課">📜 租税公課</option>
+                <option value="福利厚生">🏥 福利厚生</option>
+              </select>
+            </div>
+          </div>
+          
+          <label class="form-label"><span class="req">🏪 店名</span></label>
+          <input type="text" class="form-control" id="fStore" placeholder="例：コーナン">
+
+          <div class="genba-section">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label class="form-label"><span>🏢 元請け名</span></label>
+                <input type="text" class="form-control" id="fMotouke" placeholder="例：〇〇建設">
+              </div>
+              <div>
+                <label class="form-label"><span>📍 現場名</span></label>
+                <input type="text" class="form-control" id="fGenba" placeholder="例：〇〇邸">
+              </div>
+            </div>
+          </div>
+          
+          <label class="form-label"><span>📝 メモ</span></label>
+          <input type="text" class="form-control" id="fMemo" placeholder="用途など（任意）">
+          
+          <button class="btn btn-success" id="saveBtn" onclick="saveExpense()">💾 保存して次へ</button>
+          <button class="btn btn-ghost" style="margin-top:8px" onclick="resetForm()">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-list" style="display:none">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px;align-items:center">
+        <span style="font-weight:bold">📋 保存済みリスト</span>
+        <button class="btn btn-primary" style="width:auto;padding:8px 16px;font-size:12px" onclick="exportJSON()">📤 事務員へ出力</button>
+      </div>
+      <div id="expenseCards"></div>
+    </div>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-in" onclick="switchTab('input',this)">
+    <span style="font-size: 16px; margin-bottom: 2px;">📝</span>入力
+  </button>
+  <button class="nav-btn" id="nav-li" onclick="switchTab('list',this)">
+    <span style="font-size: 16px; margin-bottom: 2px;">📋</span>リスト
+  </button>
+</nav>
+
+<script>
+let expenses = JSON.parse(localStorage.getItem('exp_v7') || '[]');
+let currentImg = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('userName').value = localStorage.getItem('user_name_v7') || '';
+  document.getElementById('apiKey').value = localStorage.getItem('api_key_v7') || '';
+  document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+  updateApiStatus();
+  renderList();
+});
+
+function saveConfig() {
+  const name = document.getElementById('userName').value.trim();
+  const key = document.getElementById('apiKey').value.trim();
+  localStorage.setItem('user_name_v7', name);
+  localStorage.setItem('api_key_v7', key);
+  updateApiStatus();
+}
+
+function updateApiStatus() {
+  const badge = document.getElementById('apiStatusBadge');
+  const key = localStorage.getItem('api_key_v7');
+  if (key) {
+    badge.textContent = "✅ AI設定が有効です";
+    badge.className = "api-badge api-on";
+  } else {
+    badge.textContent = "AI未設定 (手動入力)";
+    badge.className = "api-badge api-off";
+  }
+}
+
+function showStatus(text, type) {
+  const bar = document.getElementById('aiStatusBar');
+  if(!bar) return;
+  bar.innerHTML = text;
+  bar.className = 'ai-status-bar ' + type;
+}
+
+function toggleFormState(disabled) {
+  const inputs = document.getElementById('formGrid').querySelectorAll('input, select');
+  inputs.forEach(el => el.disabled = disabled);
+  document.getElementById('saveBtn').disabled = disabled;
+  document.getElementById('saveBtn').textContent = disabled ? "⌛ 解析中..." : "💾 保存して次へ";
+}
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  document.getElementById('panel-' + tab).style.display = 'block';
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if(tab === 'list') renderList();
+}
+
+async function handleFile(file) {
+  if(!file || !file.type.startsWith('image/')) return;
+  
+  currentImg = await resizeImg(file, 800);
+  
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('receiptImg').src = currentImg;
+  document.getElementById('previewWrap').classList.add('show');
+  
+  const key = localStorage.getItem('api_key_v7')?.trim();
+  if(!key) {
+    // キーが未設定なら即座に手動入力へ
+    document.getElementById('fAmount').focus();
+    return;
+  }
+  
+  // キーがあればGoogle AIで高精度解析
+  analyzeAI(key, currentImg);
+}
+
+async function analyzeAI(key, base64) {
+  toggleFormState(true); 
+  showStatus("✨ AIがレシートを超高精度で解析しています...", "loading");
+  
+  // 無料枠で最も安定・高速なモデル
+  const model = "gemini-1.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  
+  let success = false;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [
+        { text: "Extract receipt info as JSON. Fields: {date:YYYY-MM-DD, amount:number, store, tax:10|8|0, category, memo}. Category must be selected from the dropdown options. Only return raw JSON object without markdown fences." }, 
+        { inlineData: { mimeType: "image/jpeg", data: base64.split(',')[1] } }
+      ] }] })
+    });
+    
+    const data = await res.json().catch(() => ({}));
+    
+    if (!res.ok) {
+      const errMsg = data.error?.message || `Error ${res.status}`;
+      if (res.status === 400 || res.status === 403 || errMsg.includes("API key not valid")) {
+        throw new Error("APIキーが無効です。正しいキーを入力してください。");
+      }
+      throw new Error(errMsg);
+    }
+    
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const match = text?.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('AIが情報を検出できませんでした。');
+    
+    const r = JSON.parse(match[0]);
+    if(r.date) document.getElementById('fDate').value = r.date;
+    if(r.amount) document.getElementById('fAmount').value = r.amount;
+    if(r.store) document.getElementById('fStore').value = r.store;
+    if(r.tax !== undefined) document.getElementById('fTax').value = String(r.tax);
+    if(r.category) document.getElementById('fCategory').value = r.category;
+    if(r.memo) document.getElementById('fMemo').value = r.memo;
+    
+    showStatus("✅ 読み取り成功！内容を確認してください。", "success");
+    success = true;
+
+  } catch(e) { 
+    showStatus(`❌ 解析エラー: 手動で入力してください。<br><span style="font-size:11px;font-weight:normal">${e.message}</span>`, "error");
+    document.getElementById('fAmount').focus();
+  } finally {
+    toggleFormState(false); 
+  }
+}
+
+function saveExpense() {
+  const name = document.getElementById('userName').value.trim();
+  const date = document.getElementById('fDate').value;
+  const amount = Number(document.getElementById('fAmount').value);
+  const store = document.getElementById('fStore').value.trim();
+  const motouke = document.getElementById('fMotouke').value.trim();
+  const genba = document.getElementById('fGenba').value.trim();
+  
+  if(!name || !date || !amount || !store) return alert('氏名・日付・金額・店名をすべて入力してください');
+
+  const newExpense = { 
+    id: Date.now(), date, amount, store, motouke, genba,
+    tax: document.getElementById('fTax').value, 
+    category: document.getElementById('fCategory').value, 
+    memo: document.getElementById('fMemo').value, 
+    img: currentImg 
+  };
+  
+  expenses.unshift(newExpense);
+  localStorage.setItem('exp_v7', JSON.stringify(expenses));
+  resetForm(); 
+  switchTab('list', document.getElementById('nav-li'));
+}
+
+function resetForm() {
+  currentImg = null; 
+  document.getElementById('uploadSection').style.display = 'block';
+  document.getElementById('previewWrap').classList.remove('show');
+  
+  const bar = document.getElementById('aiStatusBar');
+  if(bar) bar.style.display = 'none';
+
+  document.getElementById('fAmount').value = ''; 
+  document.getElementById('fStore').value = '';
+  document.getElementById('fMemo').value = '';
+  document.querySelectorAll('input[type=file]').forEach(i => i.value = '');
+}
+
+function renderList() {
+  const cont = document.getElementById('expenseCards');
+  if(!expenses.length) { cont.innerHTML = '<div style="text-align:center;padding:40px;color:#999">データなし</div>'; return; }
+  cont.innerHTML = expenses.map(e => `
+    <div class="expense-card">
+      <div>
+        <div style="font-weight:bold;font-size:14px">${esc(e.store)}</div>
+        <div style="font-size:11px;color:#666">${e.date} · <span class="cat-badge">${e.category}</span><br>🏢 ${esc(e.motouke)} / ${esc(e.genba)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:bold;color:var(--primary);font-size:16px">¥${e.amount.toLocaleString()}</div>
+        <button onclick="del(${e.id})" style="font-size:10px;color:var(--danger);border:none;background:none;padding:4px">削除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function del(id) {
+  if(!confirm('削除しますか？')) return;
+  expenses = expenses.filter(e => e.id !== id);
+  localStorage.setItem('exp_v7', JSON.stringify(expenses));
+  renderList();
+}
+
+function exportJSON() {
+  const name = document.getElementById('userName').value.trim();
+  if(!expenses.length) return alert('データなし');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({ name, expenses })], {type:'application/json'}));
+  a.download = `経費申請_${name}_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function esc(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
+
+async function resizeImg(file, max) {
+  return new Promise(res => {
+    const r = new FileReader(); r.onload = e => {
+      const img = new Image(); img.onload = () => {
+        const c = document.createElement('canvas'); const ratio = Math.min(1, max/img.width, max/img.height);
+        c.width = img.width*ratio; c.height = img.height*ratio;
+        const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height);
+        res(c.toDataURL('image/jpeg', 0.6));
+      }; img.src = e.target.result;
+    }; r.readAsDataURL(file);
+  });
+}
+</script>
+</body>
+</html>
