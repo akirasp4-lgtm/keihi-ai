@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>経費精算アプリ（AI版）</title>
+<title>経費精算アプリ（AI版・安定）</title>
 <style>
 :root {
   --primary: #2563eb; --primary-light: #eff6ff; --success: #16a34a; --success-light: #f0fdf4;
@@ -46,22 +46,18 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--gray-400);background:none;border:none}
 .nav-btn.active{color:var(--primary)}
 
-.expense-card{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid var(--gray-100)}
-.cat-badge{font-size:10px;padding:2px 6px;border-radius:10px;background:var(--gray-100)}
-
-.genba-section { background: #f0f7ff; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1.5px solid #bfdbfe; }
-
-/* AI関連のデザイン */
 .ai-status-bar { display: none; padding: 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; font-weight: bold; text-align: left; line-height: 1.5; }
 .ai-status-bar.loading { display: block; background: var(--primary-light); color: var(--primary); border: 1px solid #bfdbfe;}
 .ai-status-bar.error { display: block; background: #fee2e2; color: var(--danger); border: 1px solid #fca5a5; }
 .ai-status-bar.success { display: block; background: var(--success-light); color: var(--success); border: 1px solid #bbf7d0; }
+
+.genba-section { background: #f0f7ff; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1.5px solid #bfdbfe; }
 </style>
 </head>
 <body>
 
 <header class="app-header">
-  <div class="app-title">📝 経費精算アプリ <span style="font-size:10px; color:#666; font-weight:normal;">(AI版)</span></div>
+  <div class="app-title">📝 経費精算アプリ <span style="font-size:10px; color:#666; font-weight:normal;">(安定版)</span></div>
 </header>
 
 <main class="main">
@@ -146,7 +142,7 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
           </div>
           
           <label class="form-label"><span>📝 メモ</span></label>
-          <input type="text" class="form-control" id="fMemo" placeholder="用途など（任意）">
+          <input type="text" class="form-control" id="fMemo" placeholder="用途など（任意））">
           
           <button class="btn btn-success" id="saveBtn" onclick="saveExpense()">💾 保存して次へ</button>
           <button class="btn btn-ghost" style="margin-top:8px" onclick="resetForm()">キャンセル</button>
@@ -176,19 +172,21 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
 </nav>
 
 <script>
-let expenses = JSON.parse(localStorage.getItem('exp_v8') || '[]');
+// ストレージ名も刷新し、古いキャッシュを無効化
+const STORAGE_KEY = 'exp_vfinal_stable';
+let expenses = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
 let currentImg = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('userName').value = localStorage.getItem('user_name_v8') || '';
-  document.getElementById('apiKey').value = localStorage.getItem('api_key_v8') || '';
+  document.getElementById('userName').value = localStorage.getItem('user_name_vfinal') || '';
+  document.getElementById('apiKey').value = localStorage.getItem('api_key_vfinal') || '';
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
   renderList();
 });
 
 function saveConfig() {
-  localStorage.setItem('user_name_v8', document.getElementById('userName').value.trim());
-  localStorage.setItem('api_key_v8', document.getElementById('apiKey').value.trim());
+  localStorage.setItem('user_name_vfinal', document.getElementById('userName').value.trim());
+  localStorage.setItem('api_key_vfinal', document.getElementById('apiKey').value.trim());
 }
 
 function showStatus(text, type) {
@@ -214,48 +212,52 @@ function switchTab(tab, btn) {
 
 async function handleFile(file) {
   if(!file || !file.type.startsWith('image/')) return;
-  currentImg = await resizeImg(file, 800);
+  currentImg = await resizeImg(file, 1024);
   document.getElementById('uploadSection').style.display = 'none';
   document.getElementById('receiptImg').src = currentImg;
   document.getElementById('previewWrap').classList.add('show');
-  const key = localStorage.getItem('api_key_v8')?.trim();
+  const key = localStorage.getItem('api_key_vfinal')?.trim();
   if(key) analyzeAI(key, currentImg);
 }
 
 async function analyzeAI(key, base64) {
   toggleFormState(true); 
-  showStatus("✨ AI解析中...", "loading");
+  showStatus("✨ AI解析中... (v1beta接続)", "loading");
   
-  // v1betaからv1（最新安定版）に変更しました
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${key}`;
+  // v1betaモデル名を確実に指定
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
   
   try {
     const res = await fetch(url, {
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [
-        { text: "JSON形式で抽出。日付(YYYY-MM-DD),金額(数値),店名,税率(10か8か0),項目,メモ。項目は駐車場代,仕入高,ガソリン等から選択。JSON以外の文字は一切不要。" }, 
-        { inlineData: { mimeType: "image/jpeg", data: base64.split(',')[1] } }
-      ] }] })
+      body: JSON.stringify({ 
+        contents: [{ parts: [
+          { text: "Extract receipt info. IMPORTANT: '26/04/09' format means Reiwa 8, which is 2026-04-09. JSON fields: date(YYYY-MM-DD), amount(number), store, tax(10|8|0), category. Category must be one of: 駐車場代, 仕入高, ガソリン, 消耗品費, 事務用品, 運賃, その他交通費, 会議費, 交際費, 水道光熱, 租税公課, 福利厚生." }, 
+          { inlineData: { mimeType: "image/jpeg", data: base64.split(',')[1] } }
+        ] }],
+        generationConfig: { 
+          responseMimeType: "application/json" // 余計なテキストを排除しJSONのみ出力させる
+        }
+      })
     });
     
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || "解析に失敗しました");
+    if (!res.ok) throw new Error(data.error?.message || "APIエラー");
     
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    const match = text?.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('情報を読み取れませんでした');
+    const r = JSON.parse(text);
     
-    const r = JSON.parse(match[0]);
     if(r.date) document.getElementById('fDate').value = r.date;
     if(r.amount) document.getElementById('fAmount').value = r.amount;
     if(r.store) document.getElementById('fStore').value = r.store;
     if(r.tax !== undefined) document.getElementById('fTax').value = String(r.tax);
     if(r.category) document.getElementById('fCategory').value = r.category;
     
-    showStatus("✅ 読み取り完了", "success");
+    showStatus("✅ 読み取り成功！", "success");
   } catch(e) { 
     showStatus(`❌ 解析エラー: ${e.message}`, "error");
+    document.getElementById('fAmount').focus();
   } finally {
     toggleFormState(false); 
   }
@@ -277,7 +279,7 @@ function saveExpense() {
     memo: document.getElementById('fMemo').value, 
     img: currentImg 
   });
-  localStorage.setItem('exp_v8', JSON.stringify(expenses));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
   resetForm(); 
   switchTab('list', document.getElementById('nav-li'));
 }
@@ -290,6 +292,7 @@ function resetForm() {
   document.getElementById('fAmount').value = ''; 
   document.getElementById('fStore').value = '';
   document.getElementById('fMemo').value = '';
+  document.querySelectorAll('input[type=file]').forEach(i => i.value = '');
 }
 
 function renderList() {
@@ -312,7 +315,7 @@ function renderList() {
 function del(id) {
   if(!confirm('削除しますか？')) return;
   expenses = expenses.filter(e => e.id !== id);
-  localStorage.setItem('exp_v8', JSON.stringify(expenses));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
   renderList();
 }
 
