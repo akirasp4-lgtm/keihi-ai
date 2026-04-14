@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>経費精算アプリ（AI自動入力版）</title>
+<title>経費精算アプリ（AI版）</title>
 <style>
 :root {
   --primary: #2563eb; --primary-light: #eff6ff; --success: #16a34a; --success-light: #f0fdf4;
@@ -51,15 +51,7 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
 
 .genba-section { background: #f0f7ff; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1.5px solid #bfdbfe; }
 
-/* タブの切り替え用 */
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
-
 /* AI関連のデザイン */
-.api-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-bottom: 8px; display: inline-block; }
-.api-off { background: var(--gray-200); color: var(--gray-500); }
-.api-on { background: var(--success-light); color: var(--success); }
-
 .ai-status-bar { display: none; padding: 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; font-weight: bold; text-align: left; line-height: 1.5; }
 .ai-status-bar.loading { display: block; background: var(--primary-light); color: var(--primary); border: 1px solid #bfdbfe;}
 .ai-status-bar.error { display: block; background: #fee2e2; color: var(--danger); border: 1px solid #fca5a5; }
@@ -81,10 +73,9 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
     <details id="apiConfigDetails">
       <summary style="font-size: 12px; color: var(--gray-500); cursor: pointer; margin-top: 5px;">⚙️ AI自動入力の設定</summary>
       <div style="padding-top: 10px;">
-        <div id="apiStatusBadge" class="api-badge api-off">AI未設定</div>
         <label class="form-label"><span>Gemini APIキー</span></label>
         <input type="password" class="form-control" id="apiKey" placeholder="AIza..." oninput="saveConfig()">
-        <p style="font-size: 11px; color: var(--gray-500);">※キーはスマホ内部にのみ保存されます。誰にも共有されません。</p>
+        <p style="font-size: 11px; color: var(--gray-500);">※キーはスマホ内部にのみ保存されます。</p>
       </div>
     </details>
   </div>
@@ -185,35 +176,19 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
 </nav>
 
 <script>
-let expenses = JSON.parse(localStorage.getItem('exp_v7') || '[]');
+let expenses = JSON.parse(localStorage.getItem('exp_v8') || '[]');
 let currentImg = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('userName').value = localStorage.getItem('user_name_v7') || '';
-  document.getElementById('apiKey').value = localStorage.getItem('api_key_v7') || '';
+  document.getElementById('userName').value = localStorage.getItem('user_name_v8') || '';
+  document.getElementById('apiKey').value = localStorage.getItem('api_key_v8') || '';
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
-  updateApiStatus();
   renderList();
 });
 
 function saveConfig() {
-  const name = document.getElementById('userName').value.trim();
-  const key = document.getElementById('apiKey').value.trim();
-  localStorage.setItem('user_name_v7', name);
-  localStorage.setItem('api_key_v7', key);
-  updateApiStatus();
-}
-
-function updateApiStatus() {
-  const badge = document.getElementById('apiStatusBadge');
-  const key = localStorage.getItem('api_key_v7');
-  if (key) {
-    badge.textContent = "✅ AI設定が有効です";
-    badge.className = "api-badge api-on";
-  } else {
-    badge.textContent = "AI未設定 (手動入力)";
-    badge.className = "api-badge api-off";
-  }
+  localStorage.setItem('user_name_v8', document.getElementById('userName').value.trim());
+  localStorage.setItem('api_key_v8', document.getElementById('apiKey').value.trim());
 }
 
 function showStatus(text, type) {
@@ -227,7 +202,6 @@ function toggleFormState(disabled) {
   const inputs = document.getElementById('formGrid').querySelectorAll('input, select');
   inputs.forEach(el => el.disabled = disabled);
   document.getElementById('saveBtn').disabled = disabled;
-  document.getElementById('saveBtn').textContent = disabled ? "⌛ 解析中..." : "💾 保存して次へ";
 }
 
 function switchTab(tab, btn) {
@@ -240,57 +214,37 @@ function switchTab(tab, btn) {
 
 async function handleFile(file) {
   if(!file || !file.type.startsWith('image/')) return;
-  
   currentImg = await resizeImg(file, 800);
-  
   document.getElementById('uploadSection').style.display = 'none';
   document.getElementById('receiptImg').src = currentImg;
   document.getElementById('previewWrap').classList.add('show');
-  
-  const key = localStorage.getItem('api_key_v7')?.trim();
-  if(!key) {
-    // キーが未設定なら即座に手動入力へ
-    document.getElementById('fAmount').focus();
-    return;
-  }
-  
-  // キーがあればGoogle AIで高精度解析
-  analyzeAI(key, currentImg);
+  const key = localStorage.getItem('api_key_v8')?.trim();
+  if(key) analyzeAI(key, currentImg);
 }
 
 async function analyzeAI(key, base64) {
   toggleFormState(true); 
-  showStatus("✨ AIがレシートを超高精度で解析しています...", "loading");
+  showStatus("✨ AI解析中...", "loading");
   
-  // 無料枠で最も安定・高速なモデル
-  const model = "gemini-1.5-flash";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  // v1betaからv1（最新安定版）に変更しました
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${key}`;
   
-  let success = false;
-
   try {
     const res = await fetch(url, {
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [
-        { text: "Extract receipt info as JSON. Fields: {date:YYYY-MM-DD, amount:number, store, tax:10|8|0, category, memo}. Category must be selected from the dropdown options. Only return raw JSON object without markdown fences." }, 
+        { text: "JSON形式で抽出。日付(YYYY-MM-DD),金額(数値),店名,税率(10か8か0),項目,メモ。項目は駐車場代,仕入高,ガソリン等から選択。JSON以外の文字は一切不要。" }, 
         { inlineData: { mimeType: "image/jpeg", data: base64.split(',')[1] } }
       ] }] })
     });
     
-    const data = await res.json().catch(() => ({}));
-    
-    if (!res.ok) {
-      const errMsg = data.error?.message || `Error ${res.status}`;
-      if (res.status === 400 || res.status === 403 || errMsg.includes("API key not valid")) {
-        throw new Error("APIキーが無効です。正しいキーを入力してください。");
-      }
-      throw new Error(errMsg);
-    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || "解析に失敗しました");
     
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     const match = text?.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('AIが情報を検出できませんでした。');
+    if (!match) throw new Error('情報を読み取れませんでした');
     
     const r = JSON.parse(match[0]);
     if(r.date) document.getElementById('fDate').value = r.date;
@@ -298,14 +252,10 @@ async function analyzeAI(key, base64) {
     if(r.store) document.getElementById('fStore').value = r.store;
     if(r.tax !== undefined) document.getElementById('fTax').value = String(r.tax);
     if(r.category) document.getElementById('fCategory').value = r.category;
-    if(r.memo) document.getElementById('fMemo').value = r.memo;
     
-    showStatus("✅ 読み取り成功！内容を確認してください。", "success");
-    success = true;
-
+    showStatus("✅ 読み取り完了", "success");
   } catch(e) { 
-    showStatus(`❌ 解析エラー: 手動で入力してください。<br><span style="font-size:11px;font-weight:normal">${e.message}</span>`, "error");
-    document.getElementById('fAmount').focus();
+    showStatus(`❌ 解析エラー: ${e.message}`, "error");
   } finally {
     toggleFormState(false); 
   }
@@ -316,21 +266,18 @@ function saveExpense() {
   const date = document.getElementById('fDate').value;
   const amount = Number(document.getElementById('fAmount').value);
   const store = document.getElementById('fStore').value.trim();
-  const motouke = document.getElementById('fMotouke').value.trim();
-  const genba = document.getElementById('fGenba').value.trim();
-  
-  if(!name || !date || !amount || !store) return alert('氏名・日付・金額・店名をすべて入力してください');
+  if(!name || !date || !amount || !store) return alert('必須項目を入力してください');
 
-  const newExpense = { 
-    id: Date.now(), date, amount, store, motouke, genba,
+  expenses.unshift({ 
+    id: Date.now(), date, amount, store,
+    motouke: document.getElementById('fMotouke').value.trim(),
+    genba: document.getElementById('fGenba').value.trim(),
     tax: document.getElementById('fTax').value, 
     category: document.getElementById('fCategory').value, 
     memo: document.getElementById('fMemo').value, 
     img: currentImg 
-  };
-  
-  expenses.unshift(newExpense);
-  localStorage.setItem('exp_v7', JSON.stringify(expenses));
+  });
+  localStorage.setItem('exp_v8', JSON.stringify(expenses));
   resetForm(); 
   switchTab('list', document.getElementById('nav-li'));
 }
@@ -339,14 +286,10 @@ function resetForm() {
   currentImg = null; 
   document.getElementById('uploadSection').style.display = 'block';
   document.getElementById('previewWrap').classList.remove('show');
-  
-  const bar = document.getElementById('aiStatusBar');
-  if(bar) bar.style.display = 'none';
-
+  document.getElementById('aiStatusBar').style.display = 'none';
   document.getElementById('fAmount').value = ''; 
   document.getElementById('fStore').value = '';
   document.getElementById('fMemo').value = '';
-  document.querySelectorAll('input[type=file]').forEach(i => i.value = '');
 }
 
 function renderList() {
@@ -355,8 +298,8 @@ function renderList() {
   cont.innerHTML = expenses.map(e => `
     <div class="expense-card">
       <div>
-        <div style="font-weight:bold;font-size:14px">${esc(e.store)}</div>
-        <div style="font-size:11px;color:#666">${e.date} · <span class="cat-badge">${e.category}</span><br>🏢 ${esc(e.motouke)} / ${esc(e.genba)}</div>
+        <div style="font-weight:bold;font-size:14px">${e.store}</div>
+        <div style="font-size:11px;color:#666">${e.date} · ${e.category}</div>
       </div>
       <div style="text-align:right">
         <div style="font-weight:bold;color:var(--primary);font-size:16px">¥${e.amount.toLocaleString()}</div>
@@ -369,7 +312,7 @@ function renderList() {
 function del(id) {
   if(!confirm('削除しますか？')) return;
   expenses = expenses.filter(e => e.id !== id);
-  localStorage.setItem('exp_v7', JSON.stringify(expenses));
+  localStorage.setItem('exp_v8', JSON.stringify(expenses));
   renderList();
 }
 
@@ -381,8 +324,6 @@ function exportJSON() {
   a.download = `経費申請_${name}_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
 }
-
-function esc(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
 
 async function resizeImg(file, max) {
   return new Promise(res => {
