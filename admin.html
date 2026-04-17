@@ -145,7 +145,7 @@ function renderBoard() {
           ${items.map(i => `
             <div class="receipt-card">
               ${i.img
-                ? `<img src="${i.img}" class="receipt-img" onclick="zoom('${i.img}')" alt="レシート">`
+                ? `<img src="${i.img}" class="receipt-img" onclick="zoomThis(this)" alt="レシート">`
                 : `<div class="receipt-img" style="display:flex;align-items:center;justify-content:center;font-size:48px;background:#f9fafb">🧾</div>`
               }
               <div class="receipt-info">
@@ -168,8 +168,8 @@ function updateAmt(id, val) {
   if (item) { item.amount = Number(val); saveAndRender(); }
 }
 
-function zoom(src) {
-  document.getElementById('modalImg').src = src;
+function zoomThis(el) {
+  document.getElementById('modalImg').src = el.src;
   document.getElementById('modal').style.display = 'flex';
 }
 

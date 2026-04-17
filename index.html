@@ -142,12 +142,12 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
     <div class="step-row">
       <div class="step-num">3</div>
       <div class="step-text">
-        生成されたキー（<code>AIzaSy...</code>）をコピーして下に貼り付け
+        生成されたキー（<code>AQ...</code> または <code>AIza...</code>）をコピーして下に貼り付け
       </div>
     </div>
 
     <label class="form-label" style="margin-top:8px">APIキー</label>
-    <input type="text" class="form-control" id="keyInput" placeholder="AIzaSy..."
+    <input type="text" class="form-control" id="keyInput" placeholder="AQ... または AIza..."
            autocomplete="off" autocorrect="off" spellcheck="false">
     <div id="keyError" style="font-size:12px;color:var(--danger);margin-top:-6px;margin-bottom:10px;display:none"></div>
 
@@ -490,6 +490,7 @@ function saveExpense() {
   const taxRate = document.getElementById('fTax').value;
   const catInfo = CAT_MAP[cat] || { account:cat, accountFormal:cat, sub:'', tax:taxRate };
 
+  const thumb = await makeThumbnail(currentImg);
   expenses.unshift({
     id:        Date.now(),
     date,
@@ -504,9 +505,16 @@ function saveExpense() {
     genba:     document.getElementById('fGenba').value.trim(),
     memo:      document.getElementById('fMemo').value.trim(),
     name,
-    img:       currentImg,
+    img:       thumb,
   });
-  localStorage.setItem('exp_v6', JSON.stringify(expenses));
+  try {
+    localStorage.setItem('exp_v6', JSON.stringify(expenses));
+  } catch {
+    // 容量超過時は画像なしで保存
+    expenses[0].img = null;
+    localStorage.setItem('exp_v6', JSON.stringify(expenses));
+    alert('画像の保存容量が上限に達したため、今回は画像なしで保存しました。');
+  }
   resetForm();
   switchTab('list', document.getElementById('nav-li'));
 }
@@ -576,6 +584,22 @@ function today() { return new Date().toISOString().split('T')[0]; }
 function esc(s) {
   return String(s||'').replace(/[&<>"']/g, m =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+}
+
+async function makeThumbnail(dataUrl) {
+  if (!dataUrl) return null;
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(1, 400/img.width, 400/img.height);
+      const c = document.createElement('canvas');
+      c.width  = img.width  * ratio;
+      c.height = img.height * ratio;
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', 0.5));
+    };
+    img.src = dataUrl;
+  });
 }
 
 async function resizeImg(file, max) {
