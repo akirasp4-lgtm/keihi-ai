@@ -312,7 +312,7 @@ const CAT_MAP = {
 // ================================================================
 // 状態
 // ================================================================
-let expenses = JSON.parse(localStorage.getItem('exp_v6') || '[]');
+let expenses = (() => { try { return JSON.parse(localStorage.getItem('exp_v6') || '[]'); } catch { return []; } })();
 let currentImg = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -367,8 +367,14 @@ function switchTab(tab, btn) {
 // ファイル処理
 // ================================================================
 async function handleFile(file) {
-  if (!file || !file.type.startsWith('image/')) return;
-  currentImg = await resizeImg(file, 1600);
+  if (!file) return;
+  // MIMEが空（Android一部機種）は許容、明らかに非画像のみ弾く
+  if (file.type && !file.type.startsWith('image/')) return;
+
+  const resized = await resizeImg(file, 1600);
+  if (!resized) { alert('画像の読み込みに失敗しました。別の写真を試してください。'); return; }
+
+  currentImg = resized;
   document.getElementById('uploadSection').style.display = 'none';
   document.getElementById('receiptImg').src = currentImg;
   document.getElementById('previewWrap').classList.add('show');
@@ -448,10 +454,11 @@ async function runGeminiOCR(imgSrc, apiKey) {
 
 function applyParsedData(parsed) {
   let count = 0;
-  if (parsed.date)     { setField('fDate',   parsed.date);   count++; }
-  if (parsed.amount)   { setField('fAmount', parsed.amount); count++; }
-  if (parsed.store)    { setField('fStore',  parsed.store);  count++; }
-  if (parsed.tax_rate) {
+  const valid = v => v !== null && v !== undefined && String(v) !== 'null' && String(v) !== '';
+  if (valid(parsed.date))     { setField('fDate',   parsed.date);   count++; }
+  if (valid(parsed.amount) && Number(parsed.amount) > 0) { setField('fAmount', parsed.amount); count++; }
+  if (valid(parsed.store))    { setField('fStore',  parsed.store);  count++; }
+  if (valid(parsed.tax_rate)) {
     const el = document.getElementById('fTax');
     if (['10','8','0'].includes(String(parsed.tax_rate))) { el.value = String(parsed.tax_rate); count++; }
   }
@@ -475,7 +482,7 @@ function hideBanner() { document.getElementById('ocrResultBanner').className = '
 // ================================================================
 // 保存・フォームリセット
 // ================================================================
-function saveExpense() {
+async function saveExpense() {
   const name   = document.getElementById('userName').value.trim();
   const date   = document.getElementById('fDate').value;
   const amount = Number(document.getElementById('fAmount').value);
@@ -484,7 +491,7 @@ function saveExpense() {
 
   if (!name)   return alert('氏名を入力してください');
   if (!date)   return alert('日付を入力してください');
-  if (!amount) return alert('金額を入力してください');
+  if (!amount || amount <= 0) return alert('金額は1円以上入力してください');
   if (!store)  return alert('店名を入力してください');
 
   const taxRate = document.getElementById('fTax').value;
@@ -547,8 +554,8 @@ function renderList() {
         </div>
       </div>
       <div style="text-align:right">
-        <div style="font-weight:bold;color:var(--primary);font-size:16px">¥${e.amount.toLocaleString()}</div>
-        <div style="font-size:11px;color:#666">${e.tax}%</div>
+        <div style="font-weight:bold;color:var(--primary);font-size:16px">¥${(Number(e.amount)||0).toLocaleString()}</div>
+        <div style="font-size:11px;color:#666">${e.tax||'10'}%</div>
         <button onclick="del(${e.id})"
                 style="font-size:10px;color:var(--danger);border:none;background:none;padding:4px">
           削除
@@ -598,6 +605,7 @@ async function makeThumbnail(dataUrl) {
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       res(c.toDataURL('image/jpeg', 0.5));
     };
+    img.onerror = () => res(null);
     img.src = dataUrl;
   });
 }
@@ -618,8 +626,10 @@ async function resizeImg(file, max) {
         ctx.drawImage(img, 0, 0, c.width, c.height);
         res(c.toDataURL('image/jpeg', 0.88));
       };
+      img.onerror = () => res(null);
       img.src = e.target.result;
     };
+    r.onerror = () => res(null);
     r.readAsDataURL(file);
   });
 }

@@ -122,10 +122,13 @@ a{color:var(--primary);font-weight:700}
 
 <script>
 function copyUrl(id, btn) {
-  navigator.clipboard.writeText(document.getElementById(id).textContent.trim()).then(() => {
+  const text = document.getElementById(id).textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
     btn.textContent = 'コピーしました！';
     btn.classList.add('copied');
     setTimeout(() => { btn.textContent = 'URLをコピー'; btn.classList.remove('copied'); }, 2000);
+  }).catch(() => {
+    prompt('URLをコピーしてください', text);
   });
 }
 </script>

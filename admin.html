@@ -84,7 +84,7 @@ const CAT_MAP = {
 // ================================================================
 // 状態
 // ================================================================
-let masterData = JSON.parse(localStorage.getItem('mgr_v6_data') || '[]');
+let masterData = (() => { try { return JSON.parse(localStorage.getItem('mgr_v6_data') || '[]'); } catch { return []; } })();
 document.addEventListener('DOMContentLoaded', renderBoard);
 
 const dz = document.getElementById('dropZone');
@@ -104,13 +104,14 @@ async function loadFiles(files) {
       (json.expenses || []).forEach(e => {
         if (!masterData.some(m => m.id === e.id)) masterData.push({ ...e, name });
       });
-    } catch(err) { console.error(err); }
+    } catch(err) { console.error(err); alert(`${f.name} の読み込みに失敗しました。正しいJSONファイルか確認してください。`); }
   }
   saveAndRender();
 }
 
 function saveAndRender() {
-  localStorage.setItem('mgr_v6_data', JSON.stringify(masterData));
+  try { localStorage.setItem('mgr_v6_data', JSON.stringify(masterData)); }
+  catch { console.warn('localStorage capacity reached'); }
   renderBoard();
 }
 
@@ -122,7 +123,7 @@ function renderBoard() {
   const dash  = document.getElementById('summaryDashboard');
   if (!masterData.length) { board.innerHTML=''; dash.innerHTML=''; return; }
 
-  const total  = masterData.reduce((s,i) => s+i.amount, 0);
+  const total  = masterData.reduce((s,i) => s + (Number(i.amount)||0), 0);
   const people = [...new Set(masterData.map(i=>i.name))].length;
 
   dash.innerHTML = `
@@ -134,7 +135,7 @@ function renderBoard() {
   masterData.forEach(i => { (grouped[i.name] = grouped[i.name]||[]).push(i); });
 
   board.innerHTML = Object.entries(grouped).map(([name, items]) => {
-    const pTotal = items.reduce((s,i)=>s+i.amount, 0);
+    const pTotal = items.reduce((s,i)=>s+(Number(i.amount)||0), 0);
     return `
       <div class="person-section">
         <div class="person-header">
@@ -164,8 +165,10 @@ function renderBoard() {
 }
 
 function updateAmt(id, val) {
+  const num = Number(val);
+  if (isNaN(num) || num <= 0) return;
   const item = masterData.find(i => i.id === id);
-  if (item) { item.amount = Number(val); saveAndRender(); }
+  if (item) { item.amount = num; saveAndRender(); }
 }
 
 function zoomThis(el) {
