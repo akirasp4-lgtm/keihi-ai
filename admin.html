@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>経費精算 管理者コンソール</title>
+<style>
+:root{--primary:#2563eb;--success:#16a34a;--danger:#dc2626;--bg:#f3f4f6;--card:#fff;--border:#e5e7eb;--text:#1f2937}
+body{font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px;margin:0}
+.header{background:white;padding:15px 24px;display:flex;justify-content:space-between;align-items:center;
+        border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.header-title{font-weight:bold;font-size:20px}
+.btn{padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold;border:none;font-size:13px}
+.btn-success{background:var(--success);color:white}
+.btn-danger{background:var(--danger);color:white}
+.drop-zone{background:white;border:2px dashed #9ca3af;border-radius:12px;padding:40px;
+           text-align:center;cursor:pointer;margin:20px 0;transition:background .15s}
+.drop-zone:hover{background:#eff6ff;border-color:var(--primary)}
+.person-section{background:white;border-radius:12px;padding:20px;margin-bottom:24px;
+                box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.person-header{font-size:18px;font-weight:bold;border-bottom:2px solid var(--border);
+               padding-bottom:10px;margin-bottom:16px;display:flex;justify-content:space-between}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.receipt-card{border:1px solid var(--border);border-radius:8px;overflow:hidden;
+              background:#fafafa;display:flex;flex-direction:column}
+.receipt-img{width:100%;height:200px;object-fit:cover;cursor:zoom-in;border-bottom:1px solid var(--border)}
+.receipt-info{padding:10px;font-size:13px;flex:1}
+.amount-input{width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;
+              font-weight:bold;text-align:right}
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;
+       align-items:center;justify-content:center}
+#modal img{max-width:90%;max-height:90%;border-radius:8px}
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:20px}
+.summary-card{background:white;border-radius:12px;padding:15px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.summary-val{font-size:24px;font-weight:bold;color:var(--primary)}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-title">会社経費 管理ダッシュボード</div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-success" onclick="exportJDL()">JDL形式CSV出力</button>
+    <button class="btn btn-danger"  onclick="clearAll()">リセット</button>
+  </div>
+</header>
+
+<div style="max-width:1200px;margin:0 auto;padding:0 20px">
+
+  <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInp').click()">
+    <input type="file" id="fileInp" multiple accept=".json" style="display:none" onchange="loadFiles(this.files)">
+    <div style="font-size:40px;margin-bottom:10px">📤</div>
+    <h3>社員から送られた申請JSONをここにドロップ</h3>
+    <p style="color:#6b7280;margin-top:8px;font-size:14px">または クリックしてファイルを選択</p>
+  </div>
+
+  <div class="summary-grid" id="summaryDashboard"></div>
+  <div id="board"></div>
+</div>
+
+<div id="modal" onclick="this.style.display='none'">
+  <img id="modalImg" alt="レシート拡大">
+</div>
+
+<script>
+// ================================================================
+// カテゴリマスタ（借方科目・補助の対応）
+// ================================================================
+const CAT_MAP = {
+  '駐車場代':     { account:'旅費交通費', accountFormal:'旅費交通費', sub:'駐車場代',     taxArea:'仕入' },
+  '仕入高':       { account:'仕入高',     accountFormal:'仕入高',     sub:'',             taxArea:'仕入' },
+  'ガソリン':     { account:'車両費',     accountFormal:'車両費',     sub:'ガソリン',     taxArea:'仕入' },
+  '消耗品費':     { account:'消耗品費',   accountFormal:'消耗品費',   sub:'',             taxArea:'仕入' },
+  '事務用品':     { account:'事務用品費', accountFormal:'事務用品費', sub:'',             taxArea:'仕入' },
+  '運賃':         { account:'運賃',       accountFormal:'運賃',       sub:'',             taxArea:'仕入' },
+  'その他交通費': { account:'旅費交通費', accountFormal:'旅費交通費', sub:'その他交通費', taxArea:'仕入' },
+  '会議費':       { account:'会議費',     accountFormal:'会議費',     sub:'',             taxArea:'仕入' },
+  '交際費':       { account:'交際費',     accountFormal:'交際費',     sub:'',             taxArea:'仕入' },
+  '水道光熱':     { account:'水道光熱費', accountFormal:'水道光熱費', sub:'',             taxArea:'仕入' },
+  '租税公課':     { account:'租税公課',   accountFormal:'租税公課',   sub:'',             taxArea:'対象外' },
+  '福利厚生':     { account:'福利厚生費', accountFormal:'福利厚生費', sub:'',             taxArea:'仕入' },
+};
+
+// ================================================================
+// 状態
+// ================================================================
+let masterData = JSON.parse(localStorage.getItem('mgr_v6_data') || '[]');
+document.addEventListener('DOMContentLoaded', renderBoard);
+
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.style.background='#eff6ff'; });
+dz.addEventListener('dragleave', ()=> { dz.style.background='white'; });
+dz.addEventListener('drop',      e => { e.preventDefault(); dz.style.background='white'; loadFiles(e.dataTransfer.files); });
+
+// ================================================================
+// JSONファイル読み込み
+// ================================================================
+async function loadFiles(files) {
+  for (const f of files) {
+    if (!f.name.endsWith('.json')) continue;
+    try {
+      const json = JSON.parse(await f.text());
+      const name = json.name || '不明';
+      (json.expenses || []).forEach(e => {
+        if (!masterData.some(m => m.id === e.id)) masterData.push({ ...e, name });
+      });
+    } catch(err) { console.error(err); }
+  }
+  saveAndRender();
+}
+
+function saveAndRender() {
+  localStorage.setItem('mgr_v6_data', JSON.stringify(masterData));
+  renderBoard();
+}
+
+// ================================================================
+// 画面描画
+// ================================================================
+function renderBoard() {
+  const board = document.getElementById('board');
+  const dash  = document.getElementById('summaryDashboard');
+  if (!masterData.length) { board.innerHTML=''; dash.innerHTML=''; return; }
+
+  const total  = masterData.reduce((s,i) => s+i.amount, 0);
+  const people = [...new Set(masterData.map(i=>i.name))].length;
+
+  dash.innerHTML = `
+    <div class="summary-card"><div>合計金額</div><div class="summary-val">¥${total.toLocaleString()}</div></div>
+    <div class="summary-card"><div>申請人数</div><div class="summary-val">${people}名</div></div>
+    <div class="summary-card"><div>証跡枚数</div><div class="summary-val">${masterData.length}枚</div></div>`;
+
+  const grouped = {};
+  masterData.forEach(i => { (grouped[i.name] = grouped[i.name]||[]).push(i); });
+
+  board.innerHTML = Object.entries(grouped).map(([name, items]) => {
+    const pTotal = items.reduce((s,i)=>s+i.amount, 0);
+    return `
+      <div class="person-section">
+        <div class="person-header">
+          <span>👤 ${esc(name)} （${items.length}件）</span>
+          <span>計 ¥${pTotal.toLocaleString()}</span>
+        </div>
+        <div class="gallery">
+          ${items.map(i => `
+            <div class="receipt-card">
+              ${i.img
+                ? `<img src="${i.img}" class="receipt-img" onclick="zoom('${i.img}')" alt="レシート">`
+                : `<div class="receipt-img" style="display:flex;align-items:center;justify-content:center;font-size:48px;background:#f9fafb">🧾</div>`
+              }
+              <div class="receipt-info">
+                <div style="font-size:11px;color:#666">${i.date}</div>
+                <div style="font-weight:bold;margin:4px 0">${esc(i.store)||'店名なし'}</div>
+                <input type="number" class="amount-input" value="${i.amount}"
+                       onchange="updateAmt(${i.id}, this.value)">
+                <div style="font-size:11px;color:var(--primary);margin-top:4px">${esc(i.category)} · ${i.tax||'10'}%</div>
+                ${i.motouke||i.genba
+                  ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">${esc(i.motouke)} / ${esc(i.genba)}</div>` : ''}
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function updateAmt(id, val) {
+  const item = masterData.find(i => i.id === id);
+  if (item) { item.amount = Number(val); saveAndRender(); }
+}
+
+function zoom(src) {
+  document.getElementById('modalImg').src = src;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function clearAll() {
+  if (confirm('全データを削除しますか？')) { masterData=[]; saveAndRender(); }
+}
+
+// ================================================================
+// JDL形式 CSV 出力
+// 列順: 識別フラグ,伝番,日付,借方科目,借方科目名称,借方科目正式名称,借方補助,借方補助名称,
+//       借方課区,借方税区,借方税入力方法,借方金額,借方消費税,
+//       貸方科目,貸方科目名称,貸方科目正式名称,貸方補助,貸方補助名称,
+//       貸方課区,貸方税区,貸方税入力方法,貸方金額,貸方消費税,
+//       摘要,借方取引科目,貸方取引科目,
+//       借方部門コード,借方部門名称,貸方部門コード,貸方部門名称
+// ================================================================
+function exportJDL() {
+  if (!masterData.length) return alert('データがありません');
+
+  const HEADER = '// 識別フラグ,伝番,日付,借方科目,借方科目名称,借方科目正式名称,借方補助,借方補助名称,借方課区,借方税区,借方税入力方法,借方金額,借方消費税,貸方科目,貸方科目名称,貸方科目正式名称,貸方補助,貸方補助名称,貸方課区,貸方税区,貸方税入力方法,貸方金額,貸方消費税,摘要,借方取引科目,貸方取引科目,借方部門コード,借方部門名称,貸方部門コード,貸方部門名称';
+  const rows = [HEADER];
+
+  masterData.forEach((e, idx) => {
+    const cat     = CAT_MAP[e.category] || { account:e.category||'諸経費', accountFormal:e.category||'諸経費', sub:'', taxArea:'仕入' };
+    const taxRate = Number(e.tax ?? 10);
+    const taxDenom= taxRate === 0 ? 1 : 100 + taxRate;
+    const taxAmt  = taxRate === 0 ? 0 : Math.floor(e.amount * taxRate / taxDenom);
+    const taxLabel= taxRate === 8 ? '軽減8%' : taxRate === 0 ? '対象外' : '10%';
+    const taxArea = taxRate === 0 ? '対象外' : cat.taxArea;
+    const denban  = String(idx + 1).padStart(3, '0');
+    const dateJdl = (e.date || '').replace(/-/g, '');
+
+    let tekiyou = e.store || '';
+    if (e.motouke || e.genba) tekiyou += ` [${e.motouke||''} / ${e.genba||''}]`;
+    if (e.memo) tekiyou += ` ${e.memo}`;
+
+    rows.push([
+      '1000',                             // 識別フラグ
+      denban,                             // 伝番
+      dateJdl,                            // 日付 YYYYMMDD
+      '',                                 // 借方科目コード（空：JDL側で名称からマッピング）
+      cat.account,                        // 借方科目名称
+      cat.accountFormal,                  // 借方科目正式名称
+      '',                                 // 借方補助コード
+      cat.sub,                            // 借方補助名称
+      taxArea,                            // 借方課区
+      taxLabel,                           // 借方税区
+      '内税',                             // 借方税入力方法
+      e.amount,                           // 借方金額（税込）
+      taxAmt,                             // 借方消費税
+      '',                                 // 貸方科目コード
+      '現金',                             // 貸方科目名称
+      '現金',                             // 貸方科目正式名称
+      '',                                 // 貸方補助コード
+      '',                                 // 貸方補助名称
+      '',                                 // 貸方課区
+      '',                                 // 貸方税区
+      '',                                 // 貸方税入力方法
+      e.amount,                           // 貸方金額
+      '',                                 // 貸方消費税
+      `"${tekiyou.replace(/"/g,'""')}"`,  // 摘要（店名＋現場）
+      '',                                 // 借方取引科目
+      '',                                 // 貸方取引科目
+      '',                                 // 借方部門コード
+      `"${csv2(e.name||'')}"`,            // 借方部門名称（申請者名）
+      '',                                 // 貸方部門コード
+      `"${csv2(e.name||'')}"`,            // 貸方部門名称（申請者名）
+    ].join(','));
+  });
+
+  const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type:'text/csv;charset=utf-8' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `JDL取込_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function esc(s)  { return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
+function csv2(s) { return String(s||'').replace(/"/g, '""'); }
+</script>
+</body>
+</html>
