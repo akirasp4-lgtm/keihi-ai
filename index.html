@@ -343,8 +343,8 @@ function saveApiKey() {
   const key = document.getElementById('keyInput').value.trim();
   const errEl = document.getElementById('keyError');
   if (!key) { errEl.textContent = 'APIキーを入力してください'; errEl.style.display='block'; return; }
-  if (!key.startsWith('AIza')) {
-    errEl.textContent = 'Gemini APIキーは "AIza" で始まります。確認してください。';
+  if (key.length < 20) {
+    errEl.textContent = 'APIキーが短すぎます。確認してください。';
     errEl.style.display = 'block'; return;
   }
   localStorage.setItem('gemini_api_key', key);
