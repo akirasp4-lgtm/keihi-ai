@@ -388,26 +388,25 @@ async function handleFile(file) {
 }
 
 // ================================================================
-// Gemini Vision OCR
+// Gemini Vision OCR（複数モデル自動フォールバック）
 // ================================================================
+const GEMINI_MODELS = [
+  { ver:'v1',    model:'gemini-1.5-flash'      },
+  { ver:'v1beta',model:'gemini-1.5-flash-8b'   },
+  { ver:'v1beta',model:'gemini-2.0-flash-lite'  },
+  { ver:'v1beta',model:'gemini-2.0-flash'        },
+];
+
 async function runGeminiOCR(imgSrc, apiKey) {
   const overlay   = document.getElementById('ocrOverlay');
   const statusTxt = document.getElementById('ocrStatusText');
   overlay.classList.add('show');
-  statusTxt.textContent = 'Gemini に送信中...';
   hideBanner();
 
-  try {
-    const b64      = imgSrc.split(',')[1];
-    const mimeType = imgSrc.split(';')[0].split(':')[1] || 'image/jpeg';
-    statusTxt.textContent = '解析中...';
+  const b64      = imgSrc.split(',')[1];
+  const mimeType = imgSrc.split(';')[0].split(':')[1] || 'image/jpeg';
 
-    const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`;
-    const body = {
-      contents: [{
-        parts: [
-          { inlineData: { mimeType, data: b64 } },
-          { text: `このレシート・領収書から情報を抽出し、必ずJSON形式のみで回答してください。
+  const prompt = `このレシート・領収書から情報を抽出し、必ずJSON形式のみで回答してください。
 
 抽出項目：
 - date: 日付（YYYY-MM-DD形式。和暦は西暦に変換）
@@ -416,40 +415,76 @@ async function runGeminiOCR(imgSrc, apiKey) {
 - tax_rate: 税率（"10" または "8" または "0"。軽減税率マークがあれば "8"）
 
 例：{"date":"2026-03-18","amount":1500,"store":"コーナン","tax_rate":"10"}
-読み取れない項目はnullにしてください。` }
-        ]
-      }],
-      generationConfig: { temperature: 0 }
-    };
+読み取れない項目はnullにしてください。`;
 
-    const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-    const data = await res.json();
+  const body = JSON.stringify({
+    contents: [{ parts: [{ inlineData:{ mimeType, data:b64 } }, { text: prompt }] }],
+    generationConfig: { temperature: 0 }
+  });
 
-    if (!res.ok) {
-      const msg = data?.error?.message || `HTTP ${res.status}`;
-      throw new Error(msg + (res.status===400||res.status===403 ? '（APIキーを確認してください）' : ''));
+  let lastErr = '';
+  for (let i = 0; i < GEMINI_MODELS.length; i++) {
+    const { ver, model } = GEMINI_MODELS[i];
+    statusTxt.textContent = `解析中… (${model})`;
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${apiKey}`;
+      const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body });
+      const data = await res.json();
+
+      // クォータ超過 or 利用不可 → 次のモデルへ
+      if (res.status === 429 || res.status === 503) {
+        lastErr = data?.error?.message || `HTTP ${res.status}`;
+        console.warn(`[OCR] ${model} quota/unavailable, trying next...`);
+        continue;
+      }
+
+      // APIキーエラー（全モデル共通）→ リトライ不要
+      if (res.status === 400 || res.status === 403) {
+        const msg = data?.error?.message || `HTTP ${res.status}`;
+        overlay.classList.remove('show');
+        showBanner('error', `APIキーエラー: ${msg}<br><span style="font-size:11px;font-weight:normal">APIキーを確認して再設定してください</span>`);
+        return;
+      }
+
+      if (!res.ok) {
+        lastErr = data?.error?.message || `HTTP ${res.status}`;
+        console.warn(`[OCR] ${model} error: ${lastErr}`);
+        continue;
+      }
+
+      // 成功
+      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      overlay.classList.remove('show');
+
+      const jsonStr = raw.match(/\{[\s\S]*\}/)?.[0] || '';
+      if (!jsonStr) { showBanner('error', 'レシート情報を抽出できませんでした。手動で入力してください。'); return; }
+
+      let parsed;
+      try { parsed = JSON.parse(jsonStr); }
+      catch { showBanner('error', 'レスポンスの解析に失敗しました。手動で入力してください。'); return; }
+
+      const count = applyParsedData(parsed);
+      if      (count >= 3) showBanner('success', `${count}項目を自動入力しました。内容を確認してください。`);
+      else if (count >= 1) showBanner('partial', `${count}項目を入力しました。残りは手動で補完してください。`);
+      else                 showBanner('error',   'レシート情報を特定できませんでした。手動で入力してください。');
+      return; // 成功したので終了
+
+    } catch (err) {
+      lastErr = err.message;
+      console.warn(`[OCR] ${model} fetch error:`, err);
     }
-
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    overlay.classList.remove('show');
-
-    // JSON部分を抽出
-    const jsonStr = raw.match(/\{[\s\S]*\}/)?.[0] || '';
-    if (!jsonStr) { showBanner('error', 'レシート情報を抽出できませんでした。手動で入力してください。'); return; }
-
-    let parsed;
-    try { parsed = JSON.parse(jsonStr); } catch { showBanner('error', 'レスポンスの解析に失敗しました。手動で入力してください。'); return; }
-
-    const count = applyParsedData(parsed);
-    if      (count >= 3) showBanner('success', `${count}項目を自動入力しました。内容を確認してください。`);
-    else if (count >= 1) showBanner('partial', `${count}項目を入力しました。残りは手動で補完してください。`);
-    else                 showBanner('error',   'レシート情報を特定できませんでした。手動で入力してください。');
-
-  } catch (err) {
-    overlay.classList.remove('show');
-    showBanner('error', `エラー: ${err.message}<br><span style="font-size:11px;font-weight:normal">APIキー・ネット接続を確認してください</span>`);
-    console.error('Gemini OCR Error:', err);
   }
+
+  // 全モデル失敗
+  overlay.classList.remove('show');
+  showBanner('error',
+    `全モデルで読み取りに失敗しました。<br>
+     <span style="font-size:11px;font-weight:normal">
+       ① <a href="https://aistudio.google.com/app/apikey" target="_blank">AI Studio</a> でAPIキーが有効か確認<br>
+       ② APIキーを削除して作り直す<br>
+       ③ 手動で金額・日付を入力してください
+     </span>`);
 }
 
 function applyParsedData(parsed) {
