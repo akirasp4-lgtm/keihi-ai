@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>使い方ガイド（社員向け）</title>
+<style>
+:root{--primary:#2563eb;--success:#16a34a;--border:#e5e7eb;--gray-50:#f9fafb;--gray-500:#6b7280;--gray-800:#1f2937}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-800);padding-bottom:40px}
+.header{background:var(--primary);color:white;padding:16px;position:sticky;top:0;z-index:10;
+        display:flex;align-items:center;gap:12px;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.back-btn{background:rgba(255,255,255,.2);border:none;color:white;padding:6px 12px;
+          border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none}
+.header-title{font-size:17px;font-weight:700}
+.content{max-width:640px;margin:0 auto;padding:16px 14px;display:flex;flex-direction:column;gap:16px}
+.card{background:white;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h2{font-size:16px;font-weight:700;color:var(--primary);margin-bottom:14px;
+         padding-bottom:8px;border-bottom:2px solid #eff6ff}
+.card h3{font-size:14px;font-weight:700;margin:14px 0 8px}
+.step-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+.step-list li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.6}
+.step-num{min-width:24px;height:24px;border-radius:50%;background:var(--primary);color:white;
+          font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.url-box{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:12px 14px;
+         font-size:15px;font-weight:700;color:var(--primary);word-break:break-all;margin-bottom:4px}
+.copy-btn{width:100%;padding:10px;background:var(--primary);color:white;border:none;
+          border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
+.copy-btn.copied{background:var(--success)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border:1px solid var(--border);text-align:left}
+th{background:var(--gray-50);font-weight:700}
+.note{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;
+      padding:10px 12px;font-size:13px;color:#92400e;line-height:1.6}
+.warn{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;
+      padding:10px 12px;font-size:13px;color:#991b1b;line-height:1.6}
+a{color:var(--primary);font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="back-btn" href="index.html">← アプリへ</a>
+  <div class="header-title">使い方ガイド（社員向け）</div>
+</div>
+
+<div class="content">
+
+  <!-- アプリURL -->
+  <div class="card">
+    <h2>アプリのURL</h2>
+    <div class="url-box" id="staffUrl">https://akirasp4-lgtm.github.io/keihi-ai/</div>
+    <button class="copy-btn" onclick="copyUrl('staffUrl', this)">URLをコピー</button>
+    <p style="font-size:12px;color:var(--gray-500);margin-top:8px">
+      ホーム画面に追加しておくと次回から楽です
+    </p>
+  </div>
+
+  <!-- APIキー設定 -->
+  <div class="card">
+    <h2>初回のみ：Gemini APIキーの設定</h2>
+    <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">
+      レシートの自動読み取りに必要です。無料で取得できます。
+    </p>
+
+    <h3>キーの取得（約1分）</h3>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span><a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> をスマホで開く</span></li>
+      <li><span class="step-num">2</span><span>Googleアカウントでログイン</span></li>
+      <li><span class="step-num">3</span><span>「Create API key」をタップ</span></li>
+      <li><span class="step-num">4</span><span>「Create API key in new project」を選択</span></li>
+      <li><span class="step-num">5</span><span>表示されたキー（<code style="background:#f3f4f6;padding:2px 5px;border-radius:4px">AIzaSy...</code>）をコピー</span></li>
+    </ol>
+
+    <h3>キーの設定</h3>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>アプリ右上の「Gemini APIキー」をタップ</span></li>
+      <li><span class="step-num">2</span><span>コピーしたキーを貼り付けて「保存」</span></li>
+    </ol>
+
+    <div class="note" style="margin-top:12px">
+      無料枠：1日1,500回・毎分15回まで無料です
+    </div>
+  </div>
+
+  <!-- 経費入力 -->
+  <div class="card">
+    <h2>経費の入力手順</h2>
+
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>「カメラで撮影」または「写真を選択」をタップしてレシートを読み込む</span></li>
+      <li><span class="step-num">2</span><span>日付・金額・店名が自動入力されるので内容を確認・修正する</span></li>
+      <li><span class="step-num">3</span><span>項目・税率・現場名を設定する</span></li>
+      <li><span class="step-num">4</span><span>「保存して次へ」をタップ</span></li>
+    </ol>
+
+    <h3>入力項目の説明</h3>
+    <table>
+      <tr><th>項目</th><th>内容</th></tr>
+      <tr><td>日付</td><td>自動入力。必要に応じて修正</td></tr>
+      <tr><td>金額（税込）</td><td>自動入力。必要に応じて修正</td></tr>
+      <tr><td>税率</td><td>飲食は「軽減8%」に変更</td></tr>
+      <tr><td>項目</td><td>プルダウンから選択</td></tr>
+      <tr><td>店名・購入場所</td><td>自動入力。必要に応じて修正</td></tr>
+      <tr><td>元請け名</td><td>例：〇〇建設</td></tr>
+      <tr><td>現場名</td><td>例：〇〇邸</td></tr>
+      <tr><td>メモ</td><td>任意</td></tr>
+    </table>
+  </div>
+
+  <!-- 管理者への送付 -->
+  <div class="card">
+    <h2>管理者への送付</h2>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>画面下「リスト」タブをタップ</span></li>
+      <li><span class="step-num">2</span><span>「JSON出力（管理者へ送付）」をタップ</span></li>
+      <li><span class="step-num">3</span><span>ダウンロードされたファイルを管理者にLINEやメールで送る</span></li>
+    </ol>
+  </div>
+
+  <!-- 注意 -->
+  <div class="warn">
+    データはこのスマホの中にのみ保存されます。<br>
+    ブラウザのデータを消すとデータも消えるため、こまめにJSON出力して管理者に送ってください。
+  </div>
+
+</div>
+
+<script>
+function copyUrl(id, btn) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent.trim()).then(() => {
+    btn.textContent = 'コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'URLをコピー'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+</body>
+</html>

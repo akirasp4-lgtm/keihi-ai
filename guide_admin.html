@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>使い方ガイド（管理者向け）</title>
+<style>
+:root{--primary:#2563eb;--success:#16a34a;--border:#e5e7eb;--gray-50:#f9fafb;--gray-500:#6b7280;--gray-800:#1f2937}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-800);padding-bottom:40px}
+.header{background:#1e3a5f;color:white;padding:16px;position:sticky;top:0;z-index:10;
+        display:flex;align-items:center;gap:12px;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.back-btn{background:rgba(255,255,255,.2);border:none;color:white;padding:6px 12px;
+          border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none}
+.header-title{font-size:17px;font-weight:700}
+.content{max-width:860px;margin:0 auto;padding:16px 14px;display:flex;flex-direction:column;gap:16px}
+.card{background:white;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h2{font-size:16px;font-weight:700;color:#1e3a5f;margin-bottom:14px;
+         padding-bottom:8px;border-bottom:2px solid #e0e8f4}
+.card h3{font-size:14px;font-weight:700;margin:14px 0 8px}
+.step-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+.step-list li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.6}
+.step-num{min-width:24px;height:24px;border-radius:50%;background:#1e3a5f;color:white;
+          font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.url-box{background:#f0f4f8;border:1.5px solid #cbd5e1;border-radius:8px;padding:12px 14px;
+         font-size:14px;font-weight:700;color:#1e3a5f;word-break:break-all;margin-bottom:4px}
+.copy-btn{width:100%;padding:10px;background:#1e3a5f;color:white;border:none;
+          border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
+.copy-btn.copied{background:var(--success)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border:1px solid var(--border);text-align:left;vertical-align:top}
+th{background:var(--gray-50);font-weight:700;white-space:nowrap}
+.note{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;
+      padding:10px 12px;font-size:13px;color:#92400e;line-height:1.6}
+.warn{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;
+      padding:10px 12px;font-size:13px;color:#991b1b;line-height:1.6}
+code{background:#f3f4f6;padding:2px 5px;border-radius:4px;font-size:12px}
+a{color:var(--primary);font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="back-btn" href="admin.html">← 管理者画面へ</a>
+  <div class="header-title">使い方ガイド（管理者向け）</div>
+</div>
+
+<div class="content">
+
+  <!-- URL -->
+  <div class="card">
+    <h2>管理者画面のURL</h2>
+    <div class="url-box" id="adminUrl">https://akirasp4-lgtm.github.io/keihi-ai/admin.html</div>
+    <button class="copy-btn" onclick="copyUrl('adminUrl', this)">URLをコピー</button>
+    <div class="note" style="margin-top:12px">
+      このURLは管理者のみに共有してください。社員には社員用URL（<code>/</code>）だけ共有してください。
+    </div>
+  </div>
+
+  <!-- データ取込 -->
+  <div class="card">
+    <h2>経費データの取込</h2>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>社員からLINEやメールで送られてきたJSONファイルをPCに保存する</span></li>
+      <li><span class="step-num">2</span><span>管理者画面のドロップゾーンにファイルを<b>ドラッグ＆ドロップ</b>（または クリックして選択）</span></li>
+      <li><span class="step-num">3</span><span>複数人分を一度に取り込めます</span></li>
+    </ol>
+    <p style="font-size:13px;color:var(--gray-500);margin-top:12px">
+      取込後は人物ごとにレシート画像・金額・項目が一覧表示されます。金額は画面上で直接修正できます。
+    </p>
+  </div>
+
+  <!-- CSV出力 -->
+  <div class="card">
+    <h2>JDL形式CSVの出力</h2>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>画面右上「<b>JDL形式CSV出力</b>」ボタンをクリック</span></li>
+      <li><span class="step-num">2</span><span><code>JDL取込_YYYY-MM-DD.csv</code> がダウンロードされる</span></li>
+      <li><span class="step-num">3</span><span>JDL会計ソフトにCSVを取り込む</span></li>
+    </ol>
+
+    <h3>CSVの列構成（JDL仕様・30列）</h3>
+    <table>
+      <tr><th>列名</th><th>内容</th></tr>
+      <tr><td>識別フラグ</td><td><code>1000</code> 固定</td></tr>
+      <tr><td>伝番</td><td>連番（001〜）</td></tr>
+      <tr><td>日付</td><td>YYYYMMDD形式</td></tr>
+      <tr><td>借方科目名称</td><td>旅費交通費 / 車両費 / 消耗品費 など</td></tr>
+      <tr><td>借方補助名称</td><td>駐車場代 / ガソリン / その他交通費 など</td></tr>
+      <tr><td>借方課区</td><td>仕入 / 対象外</td></tr>
+      <tr><td>借方税区</td><td>10% / 軽減8% / 対象外</td></tr>
+      <tr><td>借方税入力方法</td><td><code>内税</code> 固定</td></tr>
+      <tr><td>借方金額</td><td>税込金額</td></tr>
+      <tr><td>借方消費税</td><td>自動計算（内税方式）</td></tr>
+      <tr><td>貸方科目名称</td><td><code>現金</code> 固定</td></tr>
+      <tr><td>貸方金額</td><td>借方金額と同額</td></tr>
+      <tr><td>摘要</td><td>店名 ＋ [元請け / 現場] ＋ メモ</td></tr>
+      <tr><td>借方部門名称</td><td>申請者名</td></tr>
+      <tr><td>貸方部門名称</td><td>申請者名</td></tr>
+    </table>
+  </div>
+
+  <!-- GitHub Pages公開手順 -->
+  <div class="card">
+    <h2>GitHub Pagesで公開する手順（初回のみ）</h2>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span><a href="https://github.com/akirasp4-lgtm/keihi-ai" target="_blank">リポジトリ（github.com/akirasp4-lgtm/keihi-ai）</a> に全ファイルをアップロード</span></li>
+      <li><span class="step-num">2</span><span>リポジトリの <b>Settings</b> → <b>Pages</b> を開く</span></li>
+      <li><span class="step-num">3</span><span>Branch: <code>main</code> / <code>/ (root)</code> を選択して <b>Save</b></span></li>
+      <li><span class="step-num">4</span><span>数分後にURLが発行される</span></li>
+      <li><span class="step-num">5</span><span>社員用URL（<code>/</code>）を社員全員にLINEなどで共有する</span></li>
+    </ol>
+  </div>
+
+  <!-- 注意 -->
+  <div class="warn">
+    取込データはこのPCのブラウザ内に保存されます。<br>
+    ブラウザのデータを削除するとデータが消えます。CSV出力は月次などで定期的に行ってください。
+  </div>
+
+</div>
+
+<script>
+function copyUrl(id, btn) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent.trim()).then(() => {
+    btn.textContent = 'コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'URLをコピー'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+</body>
+</html>
