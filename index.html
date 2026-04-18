@@ -160,7 +160,6 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
   <div class="app-title">経費精算アプリ</div>
   <div style="display:flex;gap:6px">
     <a href="guide_staff.html" class="header-key-btn" style="text-decoration:none">使い方</a>
-    <button class="header-key-btn" onclick="openKeyModal()">APIキー</button>
   </div>
 </header>
 
@@ -292,6 +291,13 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
 
 <script>
 // ================================================================
+// ★ 管理者設定：会社共通APIキー（社員は設定不要になります）
+// ここにAPIキーを入れるとAPIキーボタンが非表示になり全社員が使えます
+// 空のままにすると社員が個別にAPIキーを設定する従来モードになります
+// ================================================================
+const COMPANY_API_KEY = '';
+
+// ================================================================
 // カテゴリマスタ（借方科目・補助との対応）
 // ================================================================
 const CAT_MAP = {
@@ -325,14 +331,20 @@ document.addEventListener('DOMContentLoaded', () => {
 // ================================================================
 // APIキー管理
 // ================================================================
-function getApiKey() { return localStorage.getItem('gemini_api_key') || ''; }
+function getApiKey() { return COMPANY_API_KEY || localStorage.getItem('gemini_api_key') || ''; }
 
 function updateKeyUI() {
+  // 会社共通キーが設定済みなら APIキーボタン・バナーを非表示
+  const hasCompanyKey = !!COMPANY_API_KEY;
+  document.querySelectorAll('.header-key-btn').forEach(btn => {
+    if (btn.textContent.trim() === 'APIキー') btn.style.display = hasCompanyKey ? 'none' : '';
+  });
   document.getElementById('noKeyBanner').classList.toggle('show', !getApiKey());
 }
 
 function openKeyModal() {
-  document.getElementById('keyInput').value = getApiKey();
+  if (COMPANY_API_KEY) return; // 会社キーがあれば開かない
+  document.getElementById('keyInput').value = localStorage.getItem('gemini_api_key') || '';
   document.getElementById('keyError').style.display = 'none';
   document.getElementById('keyModal').classList.add('show');
 }
@@ -379,34 +391,32 @@ async function handleFile(file) {
   document.getElementById('receiptImg').src = currentImg;
   document.getElementById('previewWrap').classList.add('show');
 
-  const key = getApiKey();
-  if (!key) {
-    showBanner('partial', 'APIキー未設定のため自動入力はスキップ。手動で入力してください。<br><a href="#" onclick="openKeyModal();return false;">APIキーを設定する</a>');
-    return;
-  }
-  await runGeminiOCR(currentImg, key);
+  await runGeminiOCR(currentImg);
 }
 
 // ================================================================
 // Gemini Vision OCR（複数モデル自動フォールバック）
 // ================================================================
-const GEMINI_MODELS = [
-  { ver:'v1',    model:'gemini-1.5-flash'      },
-  { ver:'v1beta',model:'gemini-1.5-flash-8b'   },
-  { ver:'v1beta',model:'gemini-2.0-flash-lite'  },
-  { ver:'v1beta',model:'gemini-2.0-flash'        },
-];
+// ================================================================
+// Gemini Vision OCR（Cloudflare Worker経由）
+// ================================================================
+const WORKER_URL = 'https://keihi-ocr.akirasp4.workers.dev';
 
-async function runGeminiOCR(imgSrc, apiKey) {
+async function runGeminiOCR(imgSrc) {
   const overlay   = document.getElementById('ocrOverlay');
   const statusTxt = document.getElementById('ocrStatusText');
   overlay.classList.add('show');
+  statusTxt.textContent = '解析中...';
   hideBanner();
 
   const b64      = imgSrc.split(',')[1];
   const mimeType = imgSrc.split(';')[0].split(':')[1] || 'image/jpeg';
 
-  const prompt = `このレシート・領収書から情報を抽出し、必ずJSON形式のみで回答してください。
+  const body = JSON.stringify({
+    contents: [{
+      parts: [
+        { inlineData: { mimeType, data: b64 } },
+        { text: `このレシート・領収書から情報を抽出し、必ずJSON形式のみで回答してください。
 
 抽出項目：
 - date: 日付（YYYY-MM-DD形式。和暦は西暦に変換）
@@ -415,76 +425,46 @@ async function runGeminiOCR(imgSrc, apiKey) {
 - tax_rate: 税率（"10" または "8" または "0"。軽減税率マークがあれば "8"）
 
 例：{"date":"2026-03-18","amount":1500,"store":"コーナン","tax_rate":"10"}
-読み取れない項目はnullにしてください。`;
-
-  const body = JSON.stringify({
-    contents: [{ parts: [{ inlineData:{ mimeType, data:b64 } }, { text: prompt }] }],
+読み取れない項目はnullにしてください。` }
+      ]
+    }],
     generationConfig: { temperature: 0 }
   });
 
-  let lastErr = '';
-  for (let i = 0; i < GEMINI_MODELS.length; i++) {
-    const { ver, model } = GEMINI_MODELS[i];
-    statusTxt.textContent = `解析中… (${model})`;
+  try {
+    const res  = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    });
+    const data = await res.json();
 
-    try {
-      const url = `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${apiKey}`;
-      const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body });
-      const data = await res.json();
+    overlay.classList.remove('show');
 
-      // クォータ超過 or 利用不可 → 次のモデルへ
-      if (res.status === 429 || res.status === 503) {
-        lastErr = data?.error?.message || `HTTP ${res.status}`;
-        console.warn(`[OCR] ${model} quota/unavailable, trying next...`);
-        continue;
-      }
-
-      // APIキーエラー（全モデル共通）→ リトライ不要
-      if (res.status === 400 || res.status === 403) {
-        const msg = data?.error?.message || `HTTP ${res.status}`;
-        overlay.classList.remove('show');
-        showBanner('error', `APIキーエラー: ${msg}<br><span style="font-size:11px;font-weight:normal">APIキーを確認して再設定してください</span>`);
-        return;
-      }
-
-      if (!res.ok) {
-        lastErr = data?.error?.message || `HTTP ${res.status}`;
-        console.warn(`[OCR] ${model} error: ${lastErr}`);
-        continue;
-      }
-
-      // 成功
-      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      overlay.classList.remove('show');
-
-      const jsonStr = raw.match(/\{[\s\S]*\}/)?.[0] || '';
-      if (!jsonStr) { showBanner('error', 'レシート情報を抽出できませんでした。手動で入力してください。'); return; }
-
-      let parsed;
-      try { parsed = JSON.parse(jsonStr); }
-      catch { showBanner('error', 'レスポンスの解析に失敗しました。手動で入力してください。'); return; }
-
-      const count = applyParsedData(parsed);
-      if      (count >= 3) showBanner('success', `${count}項目を自動入力しました。内容を確認してください。`);
-      else if (count >= 1) showBanner('partial', `${count}項目を入力しました。残りは手動で補完してください。`);
-      else                 showBanner('error',   'レシート情報を特定できませんでした。手動で入力してください。');
-      return; // 成功したので終了
-
-    } catch (err) {
-      lastErr = err.message;
-      console.warn(`[OCR] ${model} fetch error:`, err);
+    if (!res.ok) {
+      const msg = data?.error?.message || `HTTP ${res.status}`;
+      showBanner('error', `読み取りエラー: ${msg}<br><span style="font-size:11px;font-weight:normal">しばらく待ってから再試行してください</span>`);
+      return;
     }
-  }
 
-  // 全モデル失敗
-  overlay.classList.remove('show');
-  showBanner('error',
-    `全モデルで読み取りに失敗しました。<br>
-     <span style="font-size:11px;font-weight:normal">
-       ① <a href="https://aistudio.google.com/app/apikey" target="_blank">AI Studio</a> でAPIキーが有効か確認<br>
-       ② APIキーを削除して作り直す<br>
-       ③ 手動で金額・日付を入力してください
-     </span>`);
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const jsonStr = raw.match(/\{[\s\S]*\}/)?.[0] || '';
+    if (!jsonStr) { showBanner('error', 'レシート情報を抽出できませんでした。手動で入力してください。'); return; }
+
+    let parsed;
+    try { parsed = JSON.parse(jsonStr); }
+    catch { showBanner('error', 'レスポンスの解析に失敗しました。手動で入力してください。'); return; }
+
+    const count = applyParsedData(parsed);
+    if      (count >= 3) showBanner('success', `${count}項目を自動入力しました。内容を確認してください。`);
+    else if (count >= 1) showBanner('partial', `${count}項目を入力しました。残りは手動で補完してください。`);
+    else                 showBanner('error',   'レシート情報を特定できませんでした。手動で入力してください。');
+
+  } catch (err) {
+    overlay.classList.remove('show');
+    showBanner('error', `通信エラー: ${err.message}`);
+    console.error('[OCR]', err);
+  }
 }
 
 function applyParsedData(parsed) {
