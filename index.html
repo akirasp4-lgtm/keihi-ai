@@ -300,6 +300,7 @@ async function handleFile(file) {
 // OCR（Cloudflare Worker → Groq AI 経由）
 // ================================================================
 const WORKER_URL = 'https://keihi-ocr.akirasp4.workers.dev';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzEegPlFZoQSGpxjXiRfqh7_rE7aiFml24ymjHwD98HwM8z_FopNeVR340RidNLR2D3Ag/exec';
 
 async function runGeminiOCR(imgSrc) {
   const overlay   = document.getElementById('ocrOverlay');
@@ -506,7 +507,7 @@ async function sendToDrive() {
   btn.disabled = true;
 
   try {
-    const res = await fetch(WORKER_URL + '/drive', {
+    const res = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, expenses }),
