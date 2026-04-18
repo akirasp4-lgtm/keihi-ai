@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>経費ファイルの送り方</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+
+/* ===== 画面表示用 ===== */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans JP',sans-serif;background:#e8edf2;padding:30px 20px;color:#1f2937}
+
+.slide{
+  width:960px;min-height:540px;margin:0 auto 30px;
+  background:white;border-radius:12px;
+  box-shadow:0 4px 20px rgba(0,0,0,.15);
+  overflow:hidden;position:relative;
+  page-break-after:always;
+}
+
+/* ===== 印刷用 ===== */
+@media print{
+  body{background:white;padding:0}
+  .slide{
+    width:100%;height:100vh;min-height:unset;
+    border-radius:0;box-shadow:none;margin:0;
+    page-break-after:always;break-after:page;
+  }
+  .no-print{display:none!important}
+}
+
+/* ===== スライドレイアウト ===== */
+.slide-inner{padding:40px 50px;height:100%;display:flex;flex-direction:column;gap:20px}
+
+/* タイトルスライド */
+.title-slide{
+  background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);
+  min-height:540px;
+}
+.title-slide .slide-inner{
+  justify-content:center;align-items:center;text-align:center;color:white;gap:16px
+}
+.main-title{font-size:42px;font-weight:900;letter-spacing:-.02em;line-height:1.2}
+.sub-title{font-size:18px;opacity:.85;font-weight:400}
+.badge-row{display:flex;gap:12px;margin-top:8px}
+.badge{background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.5);
+       border-radius:20px;padding:6px 18px;font-size:14px;font-weight:700}
+
+/* ヘッダー付きスライド */
+.slide-header{
+  background:#2563eb;color:white;
+  padding:18px 50px;font-size:20px;font-weight:700;
+  display:flex;align-items:center;gap:10px
+}
+.step-tag{
+  background:white;color:#2563eb;
+  border-radius:20px;padding:2px 14px;font-size:13px;font-weight:900
+}
+
+/* ===== 2カラムレイアウト ===== */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:30px;flex:1}
+.os-col{display:flex;flex-direction:column;gap:14px}
+.os-label{
+  display:flex;align-items:center;gap:8px;
+  font-size:16px;font-weight:700;padding-bottom:8px;
+  border-bottom:2px solid;
+}
+.os-label.iphone{color:#1d4ed8;border-color:#93c5fd}
+.os-label.android{color:#15803d;border-color:#86efac}
+.os-icon{font-size:22px}
+
+/* ===== ステップリスト ===== */
+.step-list{display:flex;flex-direction:column;gap:10px}
+.step-item{display:flex;gap:10px;align-items:flex-start}
+.step-num{
+  min-width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:white;flex-shrink:0;margin-top:1px
+}
+.step-num.blue{background:#2563eb}
+.step-num.green{background:#16a34a}
+.step-text{font-size:14px;line-height:1.6;color:#374151}
+.step-text strong{color:#1f2937}
+.step-text .tap{
+  display:inline-block;background:#eff6ff;color:#1d4ed8;
+  border:1px solid #bfdbfe;border-radius:4px;
+  padding:1px 8px;font-size:13px;font-weight:700;margin:0 2px
+}
+.step-text .tap.green{background:#f0fdf4;color:#15803d;border-color:#86efac}
+
+/* ===== 画像プレースホルダー ===== */
+.img-box{
+  border:2px dashed #d1d5db;border-radius:8px;
+  background:#f9fafb;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;color:#9ca3af;font-size:12px;text-align:center;
+  flex:1;min-height:160px;padding:10px;
+}
+.img-box .ph-icon{font-size:32px}
+.img-box .ph-label{font-size:11px;font-weight:700;color:#6b7280;line-height:1.4}
+
+/* 実際の画像が入ったとき */
+.img-box img{width:100%;height:100%;object-fit:contain;border-radius:6px}
+
+/* ===== フローチャート ===== */
+.flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.flow-box{
+  background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;
+  padding:10px 14px;font-size:13px;font-weight:700;color:#1e40af;
+  text-align:center;line-height:1.4
+}
+.flow-arrow{font-size:18px;color:#9ca3af;flex-shrink:0}
+
+/* ===== 注意ボックス ===== */
+.note-box{
+  background:#fffbeb;border:1.5px solid #fde68a;border-radius:8px;
+  padding:12px 16px;font-size:13px;color:#92400e;line-height:1.6
+}
+.note-box strong{color:#78350f}
+
+.tip-box{
+  background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;
+  padding:12px 16px;font-size:13px;color:#14532d;line-height:1.6
+}
+
+/* ===== まとめスライド ===== */
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;flex:1}
+.summary-card{
+  border:2px solid #e5e7eb;border-radius:10px;padding:16px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center
+}
+.summary-icon{font-size:36px}
+.summary-title{font-size:14px;font-weight:700;color:#1f2937}
+.summary-desc{font-size:12px;color:#6b7280;line-height:1.5}
+
+/* ===== 印刷ボタン ===== */
+.print-btn{
+  display:block;width:960px;margin:0 auto 40px;
+  padding:16px;background:#2563eb;color:white;
+  border:none;border-radius:10px;font-size:16px;font-weight:700;
+  cursor:pointer;text-align:center
+}
+.print-btn:hover{background:#1d4ed8}
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">
+  🖨️ このボタンを押してPDF保存（印刷→PDFに保存）
+</button>
+
+<!-- ===== スライド1：タイトル ===== -->
+<div class="slide title-slide">
+  <div class="slide-inner">
+    <div style="font-size:60px;margin-bottom:8px">📤</div>
+    <div class="main-title">経費ファイルの送り方</div>
+    <div class="sub-title">経費精算アプリ 社員向けガイド</div>
+    <div class="badge-row" style="justify-content:center">
+      <div class="badge">📱 iPhone 対応</div>
+      <div class="badge">🤖 Android 対応</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== スライド2：全体の流れ ===== -->
+<div class="slide">
+  <div class="slide-header">📋 全体の流れ</div>
+  <div class="slide-inner">
+    <div style="font-size:14px;color:#6b7280;margin-bottom:4px">
+      月末などにまとめて管理者に送ります。3ステップで完了！
+    </div>
+    <div class="flow" style="justify-content:center;margin:10px 0">
+      <div class="flow-box">① アプリで<br>JSON出力</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">② ファイルを<br>確認</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">③ LINEで<br>管理者に送る</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="background:#f0fdf4;border-color:#86efac;color:#15803d">
+        ✅ 完了！
+      </div>
+    </div>
+    <div class="two-col" style="margin-top:8px">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="tip-box">
+          <strong>💡 JSONファイルとは？</strong><br>
+          アプリに保存した経費データをまとめたファイルです。<br>
+          管理者の画面に取り込むことで経費精算が完了します。
+        </div>
+        <div class="note-box">
+          <strong>⚠️ 注意：</strong>データはこのスマホの中にしか保存されていません。<br>
+          こまめにJSON出力して管理者に送ってください。
+        </div>
+      </div>
+      <div class="img-box">
+        <div class="ph-icon">🖼️</div>
+        <div class="ph-label">【ここに画像を入れる】<br>アプリのリスト画面<br>（JSON出力ボタンが見えている状態）</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== スライド3：STEP1 出力 ===== -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="step-tag">STEP 1</span>
+    アプリからJSON出力する（iPhone・Android 共通）
+  </div>
+  <div class="slide-inner">
+    <div class="two-col">
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num blue">1</div>
+          <div class="step-text">
+            アプリを開き、画面下の
+            <span class="tap">📋 リスト</span>
+            をタップする
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num blue">2</div>
+          <div class="step-text">
+            <span class="tap">JSON出力（管理者へ送付）</span>
+            ボタンをタップする
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num blue">3</div>
+          <div class="step-text">
+            「ダウンロード」または「ファイルを保存」の<br>
+            画面が出たら <strong>保存</strong> する
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num blue">4</div>
+          <div class="step-text">
+            「リストを削除しますか？」が出たら<br>
+            管理者への送付が終わってから
+            <strong>「OK」</strong> を押す
+          </div>
+        </div>
+        <div class="note-box" style="margin-top:8px">
+          ファイル名：<strong>経費申請_氏名_日付.json</strong>
+        </div>
+      </div>
+      <div class="img-box">
+        <div class="ph-icon">🖼️</div>
+        <div class="ph-label">【ここに画像を入れる】<br>「JSON出力」ボタンを<br>タップした後の画面</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== スライド4：iPhone STEP2 ===== -->
+<div class="slide">
+  <div class="slide-header" style="background:#1d4ed8">
+    <span class="step-tag">STEP 2</span>
+    📱 iPhone：ファイルを確認してLINEで送る
+  </div>
+  <div class="slide-inner">
+    <div class="two-col">
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num blue">1</div>
+          <div class="step-text">
+            ホーム画面の <strong>「ファイル」</strong> アプリを開く<br>
+            <span style="font-size:12px;color:#6b7280">（青いフォルダのアイコン）</span>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num blue">2</div>
+          <div class="step-text">
+            <strong>「ダウンロード」</strong> フォルダを開く
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num blue">3</div>
+          <div class="step-text">
+            <strong>「経費申請_〇〇_日付.json」</strong> を
+            長押しする
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num blue">4</div>
+          <div class="step-text">
+            メニューから <span class="tap">共有</span> をタップ
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num blue">5</div>
+          <div class="step-text">
+            共有メニューから <strong>LINE</strong> を選び、<br>
+            管理者のトークに送信する
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;flex:1">
+        <div class="img-box" style="flex:1">
+          <div class="ph-icon">🖼️</div>
+          <div class="ph-label">【ここに画像を入れる】<br>「ファイル」アプリ→<br>ダウンロードフォルダの画面</div>
+        </div>
+        <div class="img-box" style="flex:1">
+          <div class="ph-icon">🖼️</div>
+          <div class="ph-label">【ここに画像を入れる】<br>長押しメニュー「共有」の画面</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== スライド5：Android STEP2 ===== -->
+<div class="slide">
+  <div class="slide-header" style="background:#15803d">
+    <span class="step-tag" style="color:#15803d">STEP 2</span>
+    🤖 Android：ファイルを確認してLINEで送る
+  </div>
+  <div class="slide-inner">
+    <div class="two-col">
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num green">1</div>
+          <div class="step-text">
+            <strong>「ファイル」または「マイファイル」</strong> アプリを開く<br>
+            <span style="font-size:12px;color:#6b7280">（メーカーにより名前が異なります）</span>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num green">2</div>
+          <div class="step-text">
+            <strong>「ダウンロード」</strong> フォルダを開く
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num green">3</div>
+          <div class="step-text">
+            <strong>「経費申請_〇〇_日付.json」</strong> を
+            長押しして選択する
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num green">4</div>
+          <div class="step-text">
+            画面上の <span class="tap green">共有</span> アイコン（↑）をタップ
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num green">5</div>
+          <div class="step-text">
+            共有先から <strong>LINE</strong> を選び、<br>
+            管理者のトークに送信する
+          </div>
+        </div>
+        <div class="note-box" style="margin-top:4px">
+          <strong>機種によって違う場合：</strong> Chrome のダウンロード通知バーから
+          直接「共有」できることもあります。
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;flex:1">
+        <div class="img-box" style="flex:1">
+          <div class="ph-icon">🖼️</div>
+          <div class="ph-label">【ここに画像を入れる】<br>「マイファイル」アプリ→<br>ダウンロードフォルダの画面</div>
+        </div>
+        <div class="img-box" style="flex:1">
+          <div class="ph-icon">🖼️</div>
+          <div class="ph-label">【ここに画像を入れる】<br>長押し選択→共有アイコンの画面</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== スライド6：LINEで送る（共通） ===== -->
+<div class="slide">
+  <div class="slide-header">
+    <span class="step-tag">STEP 3</span>
+    LINEで管理者に送る（iPhone・Android 共通）
+  </div>
+  <div class="slide-inner">
+    <div class="two-col">
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num blue">1</div>
+          <div class="step-text">
+            LINEで <strong>管理者のトーク</strong> を開く
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num blue">2</div>
+          <div class="step-text">
+            共有メニューから <strong>LINE</strong> を選択すると<br>
+            自動でトーク選択画面になる
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num blue">3</div>
+          <div class="step-text">
+            管理者を選んで <span class="tap">送信</span> をタップ
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num blue">4</div>
+          <div class="step-text">
+            管理者に <strong>「〇月分の経費です」</strong> など<br>
+            ひとこと添えて送ると親切！
+          </div>
+        </div>
+        <div class="tip-box" style="margin-top:8px">
+          <strong>✅ 送信後：</strong>アプリに戻って「リストを削除しますか？」で
+          <strong>OK</strong> を押してリストを空にしましょう。
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;flex:1">
+        <div class="img-box" style="flex:1">
+          <div class="ph-icon">🖼️</div>
+          <div class="ph-label">【ここに画像を入れる】<br>LINEのトーク選択画面</div>
+        </div>
+        <div class="img-box" style="flex:1">
+          <div class="ph-icon">🖼️</div>
+          <div class="ph-label">【ここに画像を入れる】<br>LINEでファイルが送られた状態</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== スライド7：まとめ ===== -->
+<div class="slide">
+  <div class="slide-header" style="background:#1e3a5f">📌 まとめ・よくある質問</div>
+  <div class="slide-inner">
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-icon">❓</div>
+        <div class="summary-title">いつ送ればいい？</div>
+        <div class="summary-desc">月末または管理者から<br>依頼があったとき。<br>こまめに送るとなお良し。</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon">🗑️</div>
+        <div class="summary-title">送った後は？</div>
+        <div class="summary-desc">「削除しますか？」でOKを押してリストを空にする。<br>消しても送ったファイルは管理者の手元に残る。</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon">📂</div>
+        <div class="summary-title">ファイルが見つからない</div>
+        <div class="summary-desc">「ダウンロード」フォルダを確認。<br>iPhoneは「ファイル」アプリ、Androidは「マイファイル」アプリ。</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon">🔁</div>
+        <div class="summary-title">二重送信してしまった</div>
+        <div class="summary-desc">管理者側で重複チェックが<br>あるので問題なし。<br>管理者に一言添えてOK。</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon">⚠️</div>
+        <div class="summary-title">データが消えた！</div>
+        <div class="summary-desc">ブラウザのデータ削除やスマホ変更でデータが消えることがある。こまめにJSONを送付すること。</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-icon">📞</div>
+        <div class="summary-title">わからない時は</div>
+        <div class="summary-desc">管理者に連絡する。<br>スクリーンショットを<br>撮って送ると早く解決。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
