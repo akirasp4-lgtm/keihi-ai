@@ -210,9 +210,15 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
     <div class="card">
       <div style="display:flex;justify-content:space-between;margin-bottom:14px;align-items:center">
         <span style="font-weight:bold">保存済み経費</span>
-        <button class="btn btn-primary"
-                style="width:auto;padding:8px 16px;font-size:12px"
-                onclick="exportJSON()">JSON出力（管理者へ送付）</button>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <button class="btn btn-success"
+                  style="width:auto;padding:8px 16px;font-size:12px"
+                  onclick="sendToDrive()">📤 管理者に送信</button>
+          <button onclick="exportJSON()"
+                  style="font-size:10px;color:var(--gray-400);background:none;border:none;cursor:pointer;padding:0">
+            ファイルで出力（バックアップ）
+          </button>
+        </div>
       </div>
       <div id="expenseCards"></div>
     </div>
@@ -488,6 +494,37 @@ function del(id) {
   expenses = expenses.filter(e => e.id !== id);
   localStorage.setItem('exp_v6', JSON.stringify(expenses));
   renderList();
+}
+
+async function sendToDrive() {
+  const name = document.getElementById('userName').value.trim();
+  if (!name)             return alert('氏名を入力してください');
+  if (!expenses.length)  return alert('データがありません');
+
+  const btn = document.querySelector('[onclick="sendToDrive()"]');
+  btn.textContent = '送信中...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(WORKER_URL + '/drive', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, expenses }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || '送信失敗');
+
+    if (confirm('✅ Googleドライブへの送信が完了しました！\n\nリストを削除しますか？')) {
+      expenses = [];
+      localStorage.setItem('exp_v6', JSON.stringify(expenses));
+      renderList();
+    }
+  } catch(err) {
+    alert('送信に失敗しました。\n' + err.message);
+  } finally {
+    btn.textContent = '📤 管理者に送信';
+    btn.disabled = false;
+  }
 }
 
 function exportJSON() {
