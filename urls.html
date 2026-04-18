@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>経費精算アプリ URL一覧</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:#1f2937;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.wrap{width:100%;max-width:500px;display:flex;flex-direction:column;gap:16px}
+h1{text-align:center;font-size:18px;font-weight:700;color:#1e3a5f;margin-bottom:4px}
+p{text-align:center;font-size:13px;color:#6b7280;margin-bottom:8px}
+.card{background:white;border-radius:14px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.card-title{font-size:13px;font-weight:700;color:#6b7280;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.url-box{background:#f3f4f6;border-radius:8px;padding:12px;font-size:13px;font-weight:700;color:#1e3a5f;word-break:break-all;margin-bottom:10px}
+.copy-btn{width:100%;padding:12px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:background .2s}
+.btn-blue{background:#2563eb;color:white}
+.btn-navy{background:#1e3a5f;color:white}
+.copy-btn.copied{background:#16a34a}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>経費精算アプリ</h1>
+  <p>URLをコピーしてLINEなどで共有してください</p>
+
+  <div class="card">
+    <div class="card-title">📱 社員用アプリ</div>
+    <div class="url-box" id="url-staff">https://akirasp4-lgtm.github.io/keihi-ai/</div>
+    <button class="copy-btn btn-blue" onclick="copy('url-staff', this)">URLをコピー</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔐 管理者用（管理者のみ）</div>
+    <div class="url-box" id="url-admin">https://akirasp4-lgtm.github.io/keihi-ai/admin.html</div>
+    <button class="copy-btn btn-navy" onclick="copy('url-admin', this)">URLをコピー</button>
+  </div>
+</div>
+
+<script>
+function copy(id, btn) {
+  const text = document.getElementById(id).textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+  }).catch(() => { prompt('URLをコピーしてください', text); });
+}
+</script>
+</body>
+</html>
