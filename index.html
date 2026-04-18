@@ -402,6 +402,12 @@ async function saveExpense() {
   if (!amount || amount <= 0) return alert('金額は1円以上入力してください');
   if (!store)  return alert('店名を入力してください');
 
+  // 重複チェック（日付・金額・店名が全て同じ）
+  const isDup = expenses.some(e =>
+    e.date === date && Number(e.amount) === amount && e.store === store
+  );
+  if (isDup && !confirm(`同じレシートが既に保存されています。\n（${date} / ¥${amount.toLocaleString()} / ${store}）\n\n続けて保存しますか？`)) return;
+
   const taxRate = document.getElementById('fTax').value;
   const catInfo = CAT_MAP[cat] || { account:cat, accountFormal:cat, sub:'', tax:taxRate };
 
@@ -486,15 +492,27 @@ function exportJSON() {
 
   const blob = new Blob([JSON.stringify({ name, expenses }, null, 2)], { type:'application/json' });
   const a    = document.createElement('a');
-  a.href     = URL.createObjectURL(blob);
+  const url  = URL.createObjectURL(blob);
+  a.href     = url;
   a.download = `経費申請_${name}_${today()}.json`;
   a.click();
+  URL.revokeObjectURL(url);
+
+  // 出力後にリストを空にする
+  if (confirm('管理者への送付が完了したらリストを空にしてください。\n今すぐ削除しますか？')) {
+    expenses = [];
+    localStorage.setItem('exp_v6', JSON.stringify(expenses));
+    renderList();
+  }
 }
 
 // ================================================================
 // ユーティリティ
 // ================================================================
-function today() { return new Date().toISOString().split('T')[0]; }
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 function esc(s) {
   return String(s||'').replace(/[&<>"']/g, m =>

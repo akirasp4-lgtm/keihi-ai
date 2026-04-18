@@ -245,9 +245,13 @@ function exportJDL() {
 
   const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type:'text/csv;charset=utf-8' });
   const a    = document.createElement('a');
-  a.href     = URL.createObjectURL(blob);
-  a.download = `JDL取込_${new Date().toISOString().slice(0,10)}.csv`;
+  const url  = URL.createObjectURL(blob);
+  a.href     = url;
+  const d    = new Date();
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  a.download = `JDL取込_${dateStr}.csv`;
   a.click();
+  URL.revokeObjectURL(url);
 }
 
 function esc(s)  { return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
