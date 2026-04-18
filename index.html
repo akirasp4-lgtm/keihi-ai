@@ -185,11 +185,11 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
           <div class="genba-section">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
               <div>
-                <label class="form-label">元請け名</label>
+                <label class="form-label req">元請け名</label>
                 <input type="text" class="form-control" id="fMotouke" placeholder="例：〇〇建設">
               </div>
               <div>
-                <label class="form-label">現場名</label>
+                <label class="form-label req">現場名</label>
                 <input type="text" class="form-control" id="fGenba" placeholder="例：〇〇邸">
               </div>
             </div>
@@ -397,10 +397,15 @@ async function saveExpense() {
   const store  = document.getElementById('fStore').value.trim();
   const cat    = document.getElementById('fCategory').value;
 
-  if (!name)   return alert('氏名を入力してください');
-  if (!date)   return alert('日付を入力してください');
+  const motouke = document.getElementById('fMotouke').value.trim();
+  const genba   = document.getElementById('fGenba').value.trim();
+
+  if (!name)    return alert('氏名を入力してください');
+  if (!date)    return alert('日付を入力してください');
   if (!amount || amount <= 0) return alert('金額は1円以上入力してください');
-  if (!store)  return alert('店名を入力してください');
+  if (!store)   return alert('店名を入力してください');
+  if (!motouke) return alert('元請け名を入力してください');
+  if (!genba)   return alert('現場名を入力してください');
 
   // 重複チェック（日付・金額・店名が全て同じ）
   const isDup = expenses.some(e =>
@@ -422,8 +427,8 @@ async function saveExpense() {
     accountFormal: catInfo.accountFormal,
     sub:       catInfo.sub,
     tax:       taxRate,
-    motouke:   document.getElementById('fMotouke').value.trim(),
-    genba:     document.getElementById('fGenba').value.trim(),
+    motouke:   motouke,
+    genba:     genba,
     memo:      document.getElementById('fMemo').value.trim(),
     name,
     img:       thumb,
