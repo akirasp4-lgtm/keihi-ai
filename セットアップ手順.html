@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>経費精算アプリ セットアップ手順</title>
+<style>
+:root{--primary:#1e3a5f;--success:#16a34a;--border:#e5e7eb}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:#1f2937;padding-bottom:40px}
+.header{background:var(--primary);color:white;padding:20px 24px}
+.header h1{font-size:20px}
+.header p{font-size:13px;opacity:.8;margin-top:4px}
+.content{max-width:860px;margin:0 auto;padding:20px 16px;display:flex;flex-direction:column;gap:20px}
+.card{background:white;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.card h2{font-size:17px;font-weight:700;color:var(--primary);border-bottom:2px solid #e0e8f4;padding-bottom:10px;margin-bottom:16px}
+.card h3{font-size:14px;font-weight:700;margin:16px 0 8px;color:#374151}
+.step{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start;font-size:14px;line-height:1.7}
+.num{min-width:26px;height:26px;border-radius:50%;background:var(--primary);color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+code{background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:12px;font-family:monospace}
+.code-block{background:#1e293b;color:#e2e8f0;border-radius:8px;padding:16px;font-size:12px;font-family:monospace;white-space:pre;overflow-x:auto;margin:10px 0;line-height:1.6}
+.note{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;font-size:13px;color:#92400e;line-height:1.6;margin-top:10px}
+.warn{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;font-size:13px;color:#991b1b;line-height:1.6;margin-top:10px}
+.success{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;font-size:13px;color:#15803d;line-height:1.6;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th,td{padding:8px 12px;border:1px solid var(--border);text-align:left}
+th{background:#f9fafb;font-weight:700}
+a{color:var(--primary);font-weight:700}
+.url-box{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:12px;font-size:14px;font-weight:700;color:var(--primary);word-break:break-all;margin:8px 0}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>経費精算アプリ セットアップ手順書</h1>
+  <p>管理者向け・初回セットアップ完全ガイド</p>
+</div>
+
+<div class="content">
+
+  <!-- 全体構成 -->
+  <div class="card">
+    <h2>全体の仕組み</h2>
+    <div class="code-block">社員のスマホ
+　↓ レシート撮影
+GitHub Pages（index.html）※APIキーなし・安全
+　↓
+Cloudflare Worker（keihi-ocr）※APIキーをここに保管
+　↓
+Groq API（無料・クレカ不要）
+　↓ OCR結果を返す
+社員の画面に自動入力</div>
+    <div class="success">
+      ✅ 社員はAPIキー設定不要<br>
+      ✅ APIキーはGitHubに入らないので安全<br>
+      ✅ Groqは無料・クレジットカード不要（1日14,400回）
+    </div>
+  </div>
+
+  <!-- ファイル構成 -->
+  <div class="card">
+    <h2>ファイル構成</h2>
+    <table>
+      <tr><th>ファイル</th><th>対象</th><th>説明</th></tr>
+      <tr><td>index.html</td><td>社員</td><td>レシート撮影・経費入力・JSON出力</td></tr>
+      <tr><td>admin.html</td><td>管理者</td><td>JSON取込・JDL形式CSV出力</td></tr>
+      <tr><td>guide_staff.html</td><td>社員</td><td>社員向け使い方ガイド</td></tr>
+      <tr><td>guide_admin.html</td><td>管理者</td><td>管理者向け使い方ガイド</td></tr>
+    </table>
+  </div>
+
+  <!-- STEP1 GitHub -->
+  <div class="card">
+    <h2>STEP 1：GitHub Pagesで公開</h2>
+    <div class="step"><div class="num">1</div><div><a href="https://github.com" target="_blank">github.com</a> でアカウント作成（無料）</div></div>
+    <div class="step"><div class="num">2</div><div>新しいリポジトリを作成（Public・名前は <code>keihi-ai</code> など）</div></div>
+    <div class="step"><div class="num">3</div><div>全HTMLファイルをリポジトリにアップロード</div></div>
+    <div class="step"><div class="num">4</div><div>Settings → Pages → Branch: main / (root) → Save</div></div>
+    <div class="step"><div class="num">5</div><div>数分後にURLが発行される</div></div>
+
+    <h3>アプリURL</h3>
+    <div class="url-box">https://akirasp4-lgtm.github.io/keihi-ai/</div>
+    <div class="url-box">https://akirasp4-lgtm.github.io/keihi-ai/admin.html</div>
+  </div>
+
+  <!-- STEP2 Groq -->
+  <div class="card">
+    <h2>STEP 2：Groq APIキーの取得（無料・クレカ不要）</h2>
+    <div class="step"><div class="num">1</div><div><a href="https://console.groq.com" target="_blank">console.groq.com</a> を開いてGoogleアカウントでサインアップ</div></div>
+    <div class="step"><div class="num">2</div><div>左メニュー「API Keys」→「Create API key」をクリック</div></div>
+    <div class="step"><div class="num">3</div><div>Display Name に <code>keihi</code> と入力して「Submit」</div></div>
+    <div class="step"><div class="num">4</div><div><code>gsk_</code> で始まるAPIキーをコピーして保管</div></div>
+    <div class="note">⚠️ APIキーは作成時しか表示されません。必ずコピーして保管してください。</div>
+  </div>
+
+  <!-- STEP3 Cloudflare -->
+  <div class="card">
+    <h2>STEP 3：Cloudflare Workerの作成</h2>
+    <div class="step"><div class="num">1</div><div><a href="https://cloudflare.com" target="_blank">cloudflare.com</a> で無料アカウント作成</div></div>
+    <div class="step"><div class="num">2</div><div>Workers & Pages → Create → Start with Hello World!</div></div>
+    <div class="step"><div class="num">3</div><div>Worker名を <code>keihi-ocr</code> にして「Deploy」</div></div>
+    <div class="step"><div class="num">4</div><div>「Edit code」を押して下記コードを全て貼り付けて「Deploy」</div></div>
+
+    <h3>Workerコード</h3>
+    <div class="code-block">export default {
+  async fetch(request, env) {
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        }
+      });
+    }
+
+    if (request.method !== 'POST') {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    const body = await request.json();
+    const b64  = body.contents?.[0]?.parts?.[0]?.inlineData?.data || '';
+    const mime = body.contents?.[0]?.parts?.[0]?.inlineData?.mimeType || 'image/jpeg';
+    const prompt = body.contents?.[0]?.parts?.[1]?.text || '';
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },
+            { type: 'text', text: prompt }
+          ]
+        }],
+        temperature: 0,
+      }),
+    });
+
+    const data = await groqRes.json();
+
+    if (!groqRes.ok) {
+      return new Response(JSON.stringify({
+        error: { message: data?.error?.message || `HTTP ${groqRes.status}` }
+      }), {
+        status: groqRes.status,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    const text = data.choices?.[0]?.message?.content || '';
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text }] } }]
+    }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+};</div>
+
+    <div class="step" style="margin-top:16px"><div class="num">5</div><div>Settings → Variables and Secrets → 「+ Add」をクリック</div></div>
+    <div class="step"><div class="num">6</div><div>Variable name: <code>GROQ_API_KEY</code> / Value: <code>gsk_...</code> のキー / Type: Secret → Deploy</div></div>
+
+    <h3>WorkerのURL</h3>
+    <div class="url-box">https://keihi-ocr.akirasp4.workers.dev</div>
+  </div>
+
+  <!-- APIキー更新 -->
+  <div class="card">
+    <h2>APIキーを変更したいとき</h2>
+    <div class="step"><div class="num">1</div><div><a href="https://console.groq.com" target="_blank">console.groq.com</a> で新しいAPIキーを作成</div></div>
+    <div class="step"><div class="num">2</div><div>Cloudflare → keihi-ocr → Settings → Variables and Secrets</div></div>
+    <div class="step"><div class="num">3</div><div><code>GROQ_API_KEY</code> の編集ボタンを押して新しいキーに更新 → Deploy</div></div>
+  </div>
+
+  <!-- 無料枠 -->
+  <div class="card">
+    <h2>無料枠について</h2>
+    <table>
+      <tr><th>サービス</th><th>無料枠</th><th>クレカ</th></tr>
+      <tr><td>GitHub Pages</td><td>無制限（公開リポジトリ）</td><td>不要</td></tr>
+      <tr><td>Cloudflare Workers</td><td>1日10万リクエスト</td><td>不要</td></tr>
+      <tr><td>Groq API</td><td>1日14,400リクエスト</td><td>不要</td></tr>
+    </table>
+    <div class="success" style="margin-top:12px">社員10人が毎日50枚ずつレシートを撮っても500リクエスト/日。余裕で無料枠内です。</div>
+  </div>
+
+</div>
+</body>
+</html>
