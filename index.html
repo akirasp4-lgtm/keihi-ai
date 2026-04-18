@@ -507,7 +507,7 @@ async function sendToDrive() {
   btn.disabled = true;
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const res = await fetch(WORKER_URL + '/drive', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, expenses }),
