@@ -120,41 +120,6 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
 </head>
 <body>
 
-<!-- APIキー設定モーダル -->
-<div class="modal-bg" id="keyModal">
-  <div class="modal-sheet">
-    <div class="modal-title">Gemini API キー設定</div>
-    <div class="modal-sub">無料枠：1日1,500リクエスト・毎分15回（経費精算には十分）</div>
-
-    <div class="step-row">
-      <div class="step-num">1</div>
-      <div class="step-text">
-        <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>
-        にアクセスして「<b>Create API key</b>」をクリック
-      </div>
-    </div>
-    <div class="step-row">
-      <div class="step-num">2</div>
-      <div class="step-text">
-        「Create API key in new project」を選択してキーを生成
-      </div>
-    </div>
-    <div class="step-row">
-      <div class="step-num">3</div>
-      <div class="step-text">
-        生成されたキー（<code>AQ...</code> または <code>AIza...</code>）をコピーして下に貼り付け
-      </div>
-    </div>
-
-    <label class="form-label" style="margin-top:8px">APIキー</label>
-    <input type="text" class="form-control" id="keyInput" placeholder="AQ... または AIza..."
-           autocomplete="off" autocorrect="off" spellcheck="false">
-    <div id="keyError" style="font-size:12px;color:var(--danger);margin-top:-6px;margin-bottom:10px;display:none"></div>
-
-    <button class="btn btn-primary" onclick="saveApiKey()">保存してOCRを使う</button>
-    <button class="btn btn-ghost" style="margin-top:10px" onclick="closeKeyModal()">あとで設定（手動入力）</button>
-  </div>
-</div>
 
 <header class="app-header">
   <div class="app-title">経費精算アプリ</div>
@@ -175,11 +140,6 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
   <div class="tab-panel active" id="panel-input">
     <div class="card">
       <div id="uploadSection">
-        <div class="no-key-banner" id="noKeyBanner">
-          Gemini APIキーが未設定です。
-          <a href="#" onclick="openKeyModal();return false;">ここをタップ</a>
-          して無料キーを設定するとレシートを自動読み取りできます。
-        </div>
         <div class="capture-btns">
           <label class="capture-btn">
             <input type="file" accept="image/*" capture="environment" onchange="handleFile(this.files[0])">
@@ -291,13 +251,6 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
 
 <script>
 // ================================================================
-// ★ 管理者設定：会社共通APIキー（社員は設定不要になります）
-// ここにAPIキーを入れるとAPIキーボタンが非表示になり全社員が使えます
-// 空のままにすると社員が個別にAPIキーを設定する従来モードになります
-// ================================================================
-const COMPANY_API_KEY = '';
-
-// ================================================================
 // カテゴリマスタ（借方科目・補助との対応）
 // ================================================================
 const CAT_MAP = {
@@ -324,45 +277,9 @@ let currentImg = null;
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('userName').value = localStorage.getItem('user_name_v6') || '';
   document.getElementById('fDate').value = today();
-  updateKeyUI();
   renderList();
 });
 
-// ================================================================
-// APIキー管理
-// ================================================================
-function getApiKey() { return COMPANY_API_KEY || localStorage.getItem('gemini_api_key') || ''; }
-
-function updateKeyUI() {
-  // 会社共通キーが設定済みなら APIキーボタン・バナーを非表示
-  const hasCompanyKey = !!COMPANY_API_KEY;
-  document.querySelectorAll('.header-key-btn').forEach(btn => {
-    if (btn.textContent.trim() === 'APIキー') btn.style.display = hasCompanyKey ? 'none' : '';
-  });
-  document.getElementById('noKeyBanner').classList.toggle('show', !getApiKey());
-}
-
-function openKeyModal() {
-  if (COMPANY_API_KEY) return; // 会社キーがあれば開かない
-  document.getElementById('keyInput').value = localStorage.getItem('gemini_api_key') || '';
-  document.getElementById('keyError').style.display = 'none';
-  document.getElementById('keyModal').classList.add('show');
-}
-
-function closeKeyModal() { document.getElementById('keyModal').classList.remove('show'); }
-
-function saveApiKey() {
-  const key = document.getElementById('keyInput').value.trim();
-  const errEl = document.getElementById('keyError');
-  if (!key) { errEl.textContent = 'APIキーを入力してください'; errEl.style.display='block'; return; }
-  if (key.length < 20) {
-    errEl.textContent = 'APIキーが短すぎます。確認してください。';
-    errEl.style.display = 'block'; return;
-  }
-  localStorage.setItem('gemini_api_key', key);
-  closeKeyModal();
-  updateKeyUI();
-}
 
 // ================================================================
 // タブ切替
