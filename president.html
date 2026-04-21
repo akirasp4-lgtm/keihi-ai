@@ -94,10 +94,6 @@ body{font-family:-apple-system,sans-serif;background:#f7f5fb;color:var(--gray-80
           background:white;text-align:center;font-size:13px;font-weight:700;cursor:pointer;user-select:none}
 .pay-chip.active{border-color:var(--primary);background:var(--primary);color:white}
 
-/* 按分する/しない トグル */
-.alloc-toggle{flex:1;padding:10px;border:1.5px solid var(--gray-300);border-radius:8px;
-              background:white;text-align:center;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
-.alloc-toggle.active{border-color:var(--primary);background:var(--primary);color:white}
 
 .alloc-mode{display:flex;gap:6px;margin:8px 0}
 .alloc-mode-btn{flex:1;padding:8px;border:1.5px solid var(--gray-300);border-radius:6px;
@@ -225,33 +221,29 @@ body{font-family:-apple-system,sans-serif;background:#f7f5fb;color:var(--gray-80
             </div>
           </div>
 
-          <!-- 按分するかしないかの選択 -->
+          <!-- 按分(任意: 会社をチェックすれば按分、チェックなしなら按分なし) -->
           <div class="pay-section alloc">
-            <label class="form-label" style="color:#5b21b6">🏢 費用負担</label>
-
-            <div style="display:flex;gap:6px;margin-bottom:10px">
-              <button type="button" class="alloc-toggle active" id="toggleNo"  onclick="setSplit(false)">按分しない</button>
-              <button type="button" class="alloc-toggle"       id="toggleYes" onclick="setSplit(true)">按分する</button>
+            <label class="form-label" style="color:#5b21b6">🏢 按分（必要な時だけチェック）</label>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:8px">
+              会社を選ばずに保存 → 按分なし（普通の経費）<br>
+              会社をチェックして%入力 → 按分あり
             </div>
 
-            <!-- 按分する時のみ表示されるUI -->
-            <div id="splitSection" style="display:none">
-              <div class="alloc-mode">
-                <button type="button" class="alloc-mode-btn active" id="modeBtn-pct" onclick="setAllocMode('pct')">％指定</button>
-                <button type="button" class="alloc-mode-btn" id="modeBtn-amt" onclick="setAllocMode('amt')">金額指定</button>
-              </div>
-
-              <div id="allocList"></div>
-
-              <div class="alloc-recent" id="allocRecent" style="display:none"></div>
-
-              <div class="alloc-actions">
-                <button type="button" class="alloc-btn-small" onclick="allocEqualSplit()">⚖ 均等割</button>
-                <button type="button" class="alloc-btn-small" onclick="allocClear()">🗑 クリア</button>
-              </div>
-
-              <div class="alloc-total" id="allocTotal">合計: —</div>
+            <div class="alloc-mode">
+              <button type="button" class="alloc-mode-btn active" id="modeBtn-pct" onclick="setAllocMode('pct')">％指定</button>
+              <button type="button" class="alloc-mode-btn" id="modeBtn-amt" onclick="setAllocMode('amt')">金額指定</button>
             </div>
+
+            <div id="allocList"></div>
+
+            <div class="alloc-recent" id="allocRecent" style="display:none"></div>
+
+            <div class="alloc-actions">
+              <button type="button" class="alloc-btn-small" onclick="allocEqualSplit()">⚖ 均等割</button>
+              <button type="button" class="alloc-btn-small" onclick="allocClear()">🗑 クリア</button>
+            </div>
+
+            <div class="alloc-total" id="allocTotal" style="display:none"></div>
           </div>
 
           <label class="form-label">メモ</label>
@@ -335,9 +327,9 @@ let currentImg = null;
 
 // フォーム内ステート
 let paySource = '';                   // '現金' / 'GRアメックス' / 'GRHDアメックス'
-let isSplit   = false;                // true=按分する / false=按分しない(デフォルト)
 let allocMode = 'pct';                // 按分時の '%指定' or '金額指定'
 let allocData = {};                   // { 'グローライズ': { checked:true, value:100 }, ... }
+// 按分する/しないは allocData のチェック状態から自動判定
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('fDate').value = today();
@@ -358,15 +350,6 @@ function setPaySource(src) {
   });
 }
 
-// ================================================================
-// 按分する/しない 切替
-// ================================================================
-function setSplit(yes) {
-  isSplit = yes;
-  document.getElementById('toggleNo').classList.toggle('active', !yes);
-  document.getElementById('toggleYes').classList.toggle('active', yes);
-  document.getElementById('splitSection').style.display = yes ? 'block' : 'none';
-}
 
 // ================================================================
 // 按分UI
@@ -467,12 +450,13 @@ function updateAllocTotal() {
   const el = document.getElementById('allocTotal');
   if (!el) return;
   const entries = Object.entries(allocData).filter(([_, d]) => d.checked);
-  const sum = entries.reduce((s, [_, d]) => s + (Number(d.value) || 0), 0);
+  // 何もチェックされてない時は合計を非表示(按分なし状態)
   if (entries.length === 0) {
-    el.className = 'alloc-total ng';
-    el.textContent = '合計: — (1社以上選択してください)';
+    el.style.display = 'none';
     return;
   }
+  el.style.display = 'block';
+  const sum = entries.reduce((s, [_, d]) => s + (Number(d.value) || 0), 0);
   if (allocMode === 'pct') {
     const ok = Math.abs(sum - 100) < 0.01;
     el.className = 'alloc-total ' + (ok ? 'ok' : 'ng');
@@ -742,8 +726,8 @@ async function saveExpense() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
     alert('画像の保存容量が上限に達したため、今回は画像なしで保存しました。');
   }
-  // 按分パターンを「最近」に記録(按分した場合のみ、単独は記録しない)
-  if (isSplit && allocations.length > 1) {
+  // 按分パターンを「最近」に記録(2社以上の按分の時のみ)
+  if (allocations.length >= 2) {
     saveRecentAlloc(allocations.map(a => ({ company: a.company, percent: a.percent })));
   }
   resetForm();
@@ -754,12 +738,13 @@ async function saveExpense() {
 // 成功: [] (按分しない) または [{ company, percent, amount }, ...] (按分する)
 // 失敗: alert してから null 返す
 function buildAllocations(total) {
-  // 按分しない → 空配列(会社情報なしの経費)
-  if (!isSplit) return [];
+  // 1社もチェックされてない → 按分しない(空配列)
+  const anyChecked = Object.values(allocData).some(d => d.checked);
+  if (!anyChecked) return [];
 
   // 按分する
   const entries = Object.entries(allocData).filter(([_, d]) => d.checked && Number(d.value) > 0);
-  if (!entries.length) { alert('🏢 費用負担する会社を1社以上選択してください'); return null; }
+  if (!entries.length) { alert('🏢 按分する会社を1社以上選択し、%を入力してください'); return null; }
 
   const values = entries.map(([c, d]) => ({ company: c, value: Number(d.value) }));
   const sum = values.reduce((s, v) => s + v.value, 0);
@@ -806,8 +791,7 @@ function resetForm() {
   // 支払元をリセット
   paySource = '';
   document.querySelectorAll('.pay-chip[data-source]').forEach(el => el.classList.remove('active'));
-  // 按分トグルを「按分しない」に戻す
-  setSplit(false);
+  // 按分をクリア
   allocMode = 'pct';
   document.getElementById('modeBtn-pct').classList.add('active');
   document.getElementById('modeBtn-amt').classList.remove('active');
