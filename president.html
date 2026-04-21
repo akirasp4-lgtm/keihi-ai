@@ -94,6 +94,10 @@ body{font-family:-apple-system,sans-serif;background:#f7f5fb;color:var(--gray-80
           background:white;text-align:center;font-size:13px;font-weight:700;cursor:pointer;user-select:none}
 .pay-chip.active{border-color:var(--primary);background:var(--primary);color:white}
 
+/* 単独負担時の会社チップ(3列グリッド) */
+#singleCompanyChips{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+#singleCompanyChips .pay-chip{flex:unset;min-width:unset;padding:10px 6px;font-size:12px}
+
 .alloc-mode{display:flex;gap:6px;margin:8px 0}
 .alloc-mode-btn{flex:1;padding:8px;border:1.5px solid var(--gray-300);border-radius:6px;
                 background:white;font-size:12px;font-weight:700;cursor:pointer}
@@ -222,24 +226,44 @@ body{font-family:-apple-system,sans-serif;background:#f7f5fb;color:var(--gray-80
 
           <!-- 按分 -->
           <div class="pay-section alloc">
-            <label class="form-label req" style="color:#5b21b6">🏢 費用負担（按分）</label>
+            <label class="form-label req" style="color:#5b21b6">🏢 費用負担</label>
 
-            <div class="alloc-mode">
-              <button type="button" class="alloc-mode-btn active" id="modeBtn-pct" onclick="setAllocMode('pct')">％指定</button>
-              <button type="button" class="alloc-mode-btn" id="modeBtn-amt" onclick="setAllocMode('amt')">金額指定</button>
+            <!-- 単独負担モード(デフォルト) -->
+            <div id="singleCompanySection">
+              <div style="font-size:11px;color:#6b7280;margin-bottom:6px">負担会社（タップで選択）</div>
+              <div id="singleCompanyChips" class="pay-row" style="flex-wrap:wrap"></div>
+              <button type="button" onclick="expandSplit()"
+                      style="margin-top:10px;padding:8px 10px;border:1px dashed var(--primary);
+                             background:white;color:var(--primary);border-radius:6px;
+                             font-size:12px;font-weight:700;cursor:pointer;width:100%">
+                ➕ 複数の会社で按分する
+              </button>
             </div>
 
-            <div id="allocList"></div>
+            <!-- 按分モード(開閉式) -->
+            <div id="splitSection" style="display:none">
+              <button type="button" onclick="collapseSplit()"
+                      style="padding:5px 10px;background:none;border:1px solid #d1d5db;
+                             border-radius:4px;font-size:11px;cursor:pointer;margin-bottom:10px">
+                ← 単独負担に戻す
+              </button>
 
-            <div class="alloc-recent" id="allocRecent" style="display:none"></div>
+              <div class="alloc-mode">
+                <button type="button" class="alloc-mode-btn active" id="modeBtn-pct" onclick="setAllocMode('pct')">％指定</button>
+                <button type="button" class="alloc-mode-btn" id="modeBtn-amt" onclick="setAllocMode('amt')">金額指定</button>
+              </div>
 
-            <div class="alloc-actions">
-              <button type="button" class="alloc-btn-small" onclick="allocEqualSplit()">⚖ 均等割</button>
-              <button type="button" class="alloc-btn-small" onclick="allocReset100GR()">↺ 100% GR</button>
-              <button type="button" class="alloc-btn-small" onclick="allocClear()">🗑 クリア</button>
+              <div id="allocList"></div>
+
+              <div class="alloc-recent" id="allocRecent" style="display:none"></div>
+
+              <div class="alloc-actions">
+                <button type="button" class="alloc-btn-small" onclick="allocEqualSplit()">⚖ 均等割</button>
+                <button type="button" class="alloc-btn-small" onclick="allocClear()">🗑 クリア</button>
+              </div>
+
+              <div class="alloc-total" id="allocTotal">合計: —</div>
             </div>
-
-            <div class="alloc-total" id="allocTotal">合計: —</div>
           </div>
 
           <label class="form-label">メモ</label>
@@ -322,13 +346,16 @@ let expenses = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY
 let currentImg = null;
 
 // フォーム内ステート
-let paySource = '';        // '現金' / 'GRアメックス' / 'GRHDアメックス'
-let allocMode = 'pct';     // 'pct' or 'amt'
-let allocData = {};        // { 'グローライズ': { checked:true, value:100 }, ... }
+let paySource = '';                   // '現金' / 'GRアメックス' / 'GRHDアメックス'
+let isSplit   = false;                // true=按分モード、false=単独負担モード(デフォルト)
+let singleCompany = 'グローライズ';    // 単独負担時の会社
+let allocMode = 'pct';                // 按分モード時の '%指定' or '金額指定'
+let allocData = {};                   // { 'グローライズ': { checked:true, value:100 }, ... }
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('fDate').value = today();
   renderList();
+  renderSingleCompanyChips();
   renderAllocList();
   renderRecentAllocs();
   // 金額変更で %⇔¥ サイド表示更新
@@ -340,9 +367,48 @@ document.addEventListener('DOMContentLoaded', () => {
 // ================================================================
 function setPaySource(src) {
   paySource = src;
-  document.querySelectorAll('.pay-chip').forEach(el => {
+  // 支払元チップの active 切替(data-source属性で識別)
+  document.querySelectorAll('.pay-chip[data-source]').forEach(el => {
     el.classList.toggle('active', el.dataset.source === src);
   });
+  // 単独負担モードの時、支払元カードの発行会社を自動選択
+  if (!isSplit) {
+    singleCompany = (src === 'GRHDアメックス') ? 'GRHD' : 'グローライズ';
+    renderSingleCompanyChips();
+  }
+}
+
+// ================================================================
+// 単独負担モード(デフォルト)
+// ================================================================
+function renderSingleCompanyChips() {
+  const html = COMPANIES.map(c => {
+    const active = (c === singleCompany) ? 'active' : '';
+    return `<div class="pay-chip ${active}" data-company="${esc(c)}" onclick="setSingleCompany('${esc(c)}')">${esc(c)}</div>`;
+  }).join('');
+  document.getElementById('singleCompanyChips').innerHTML = html;
+}
+
+function setSingleCompany(c) {
+  singleCompany = c;
+  renderSingleCompanyChips();
+}
+
+function expandSplit() {
+  isSplit = true;
+  document.getElementById('singleCompanySection').style.display = 'none';
+  document.getElementById('splitSection').style.display = 'block';
+  // 単独で選ばれていた会社を按分UIに引き継ぐ(100%)
+  if (Object.keys(allocData).length === 0) {
+    allocData = { [singleCompany]: { checked: true, value: 100 } };
+  }
+  renderAllocList();
+}
+
+function collapseSplit() {
+  isSplit = false;
+  document.getElementById('singleCompanySection').style.display = 'block';
+  document.getElementById('splitSection').style.display = 'none';
 }
 
 // ================================================================
@@ -688,8 +754,10 @@ async function saveExpense() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
     alert('画像の保存容量が上限に達したため、今回は画像なしで保存しました。');
   }
-  // 按分パターンを「最近」に記録(% のみ保存)
-  saveRecentAlloc(allocations.map(a => ({ company: a.company, percent: a.percent })));
+  // 按分パターンを「最近」に記録(按分した場合のみ、単独は記録しない)
+  if (isSplit && allocations.length > 1) {
+    saveRecentAlloc(allocations.map(a => ({ company: a.company, percent: a.percent })));
+  }
   resetForm();
   switchTab('list', document.getElementById('nav-li'));
 }
@@ -698,6 +766,13 @@ async function saveExpense() {
 // 成功: [{ company, percent, amount }] を返す
 // 失敗: alert してから null 返す
 function buildAllocations(total) {
+  // 単独負担モード: 1会社が100%負担
+  if (!isSplit) {
+    if (!singleCompany) { alert('🏢 負担会社を選択してください'); return null; }
+    return [{ company: singleCompany, percent: 100, amount: total }];
+  }
+
+  // 按分モード
   const entries = Object.entries(allocData).filter(([_, d]) => d.checked && Number(d.value) > 0);
   if (!entries.length) { alert('🏢 費用負担する会社を1社以上選択してください'); return null; }
 
@@ -710,11 +785,11 @@ function buildAllocations(total) {
       alert(`按分合計が ${sum.toFixed(1)}% です。100% になるよう調整してください。`);
       return null;
     }
-    // %→¥変換。端数は最初の会社に寄せる
+    // %→¥変換。端数は最後の会社に寄せる
     let acc = 0;
     const result = values.map((v, i) => {
       let amount;
-      if (i === values.length - 1) amount = total - acc;  // 最後は残り全部
+      if (i === values.length - 1) amount = total - acc;
       else { amount = Math.floor(total * v.value / 100); acc += amount; }
       return { company: v.company, percent: Number(v.value), amount };
     });
@@ -743,9 +818,15 @@ function resetForm() {
   hideBanner();
   document.querySelectorAll('.auto-filled').forEach(el => el.classList.remove('auto-filled'));
   document.querySelectorAll('input[type=file]').forEach(i => i.value='');
-  // 支払元・按分をリセット
+  // 支払元をリセット
   paySource = '';
-  document.querySelectorAll('.pay-chip').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.pay-chip[data-source]').forEach(el => el.classList.remove('active'));
+  // 按分を単独モードに戻す(デフォ=グローライズ)
+  isSplit = false;
+  singleCompany = 'グローライズ';
+  document.getElementById('singleCompanySection').style.display = 'block';
+  document.getElementById('splitSection').style.display = 'none';
+  renderSingleCompanyChips();
   allocMode = 'pct';
   document.getElementById('modeBtn-pct').classList.add('active');
   document.getElementById('modeBtn-amt').classList.remove('active');
@@ -764,9 +845,15 @@ function renderList() {
     const paySrcLabel = e.paymentSource
       ? (e.paymentSource === '現金' ? '💴 現金' : '💳 ' + e.paymentSource.replace('アメックス', ''))
       : '';
-    const allocLabel = e.allocations?.length
-      ? e.allocations.map(a => `${a.company}${a.percent}%`).join(' / ')
-      : '';
+    // 単独(1社100%) or 按分(複数) を表示分け
+    let allocLabel = '';
+    if (Array.isArray(e.allocations) && e.allocations.length > 0) {
+      if (e.allocations.length === 1 && e.allocations[0].percent === 100) {
+        allocLabel = `${e.allocations[0].company}（単独）`;
+      } else {
+        allocLabel = e.allocations.map(a => `${a.company}${a.percent}%`).join(' / ');
+      }
+    }
     return `
     <div class="expense-card">
       <div style="flex:1;min-width:0">

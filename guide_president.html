@@ -84,13 +84,15 @@ a{color:var(--primary);font-weight:700}
     <ol class="step-list">
       <li><span class="step-num">1</span><span>「📸 カメラで撮影」または「🖼️ 写真を選択」でレシートを取込</span></li>
       <li><span class="step-num">2</span><span>AIが解析 → 日付・金額・店名・税率が自動入力（数秒）</span></li>
-      <li><span class="step-num">3</span><span>項目（カテゴリ）を選ぶ（会議費・交際費・駐車場代など）</span></li>
-      <li><span class="step-num">4</span><span>店名を確認（必要なら修正）</span></li>
-      <li><span class="step-num">5</span><span><b>💳 支払元</b>を選ぶ</span></li>
-      <li><span class="step-num">6</span><span><b>🏢 費用負担（按分）</b>を設定</span></li>
-      <li><span class="step-num">7</span><span>メモ入力（任意）</span></li>
-      <li><span class="step-num">8</span><span>「保存して次へ」をタップ</span></li>
+      <li><span class="step-num">3</span><span>項目（カテゴリ）を選ぶ</span></li>
+      <li><span class="step-num">4</span><span><b>💳 支払元</b>を選ぶ（現金 / GR / GRHD）</span></li>
+      <li><span class="step-num">5</span><span><b>🏢 費用負担</b>は<b>自動でグローライズ選択済み</b>。違う会社ならタップで変更</span></li>
+      <li><span class="step-num">6</span><span>「保存して次へ」をタップ</span></li>
     </ol>
+    <div class="tip" style="margin-top:12px">
+      ⚡ <b>一番早い操作</b>: 撮影 → 項目選ぶ → 支払元タップ → 保存 （4タップ程度）<br>
+      (グローライズ負担の場合は会社選択不要、AIで日付・金額・店名が自動入力されるので)
+    </div>
   </div>
 
   <!-- 支払元 -->
@@ -110,75 +112,81 @@ a{color:var(--primary);font-weight:700}
     </div>
   </div>
 
-  <!-- 按分 -->
+  <!-- 費用負担 -->
   <div class="card">
-    <h2>🏢 費用負担（按分）の設定</h2>
+    <h2>🏢 費用負担の設定</h2>
     <p style="font-size:13px;line-height:1.6;margin-bottom:10px">
-      この経費を<b>どの会社が何%負担するか</b>を設定します。最大6社まで按分できます。
+      この経費を<b>どの会社が負担するか</b>を設定します。<br>
+      <b>単独負担（1社）</b>と<b>複数社按分</b>の両方に対応しています。
     </p>
 
-    <h3>基本操作（％指定モード）</h3>
+    <h3>① 単独負担（デフォルト・一番多いケース）</h3>
+    <p style="font-size:13px;line-height:1.6">
+      画面を開いた時点で <b>グローライズが自動選択</b>されています。<br>
+      そのままでOK or 他の会社をタップして切替、それだけ。
+    </p>
+
+    <div class="tip" style="margin-top:8px">
+      💡 <b>支払元と連動</b>:<br>
+      ・💳GR を選ぶ → グローライズ が自動選択<br>
+      ・💳GRHD を選ぶ → GRHD が自動選択<br>
+      ・💴現金 を選ぶ → グローライズ が自動選択（変更可）
+    </div>
+
+    <h3 style="margin-top:16px">② 複数社で按分したい時</h3>
     <ol class="step-list">
-      <li><span class="step-num">1</span><span>負担する会社の<b>チェックボックス</b>を入れる</span></li>
-      <li><span class="step-num">2</span><span>それぞれに <b>％</b> を入力（例: 50）</span></li>
-      <li><span class="step-num">3</span><span>合計が<b>100%</b>になっていることを確認（✅表示）</span></li>
-      <li><span class="step-num">4</span><span>隣に自動で¥金額が表示されるので確認</span></li>
+      <li><span class="step-num">1</span><span>「<b>➕ 複数の会社で按分する</b>」ボタンをタップ</span></li>
+      <li><span class="step-num">2</span><span>按分UIが展開される（現在の単独負担会社が先に入ってる）</span></li>
+      <li><span class="step-num">3</span><span>他の会社もチェック → %を入力</span></li>
+      <li><span class="step-num">4</span><span>合計が <b>100%</b> になれば ✅</span></li>
+      <li><span class="step-num">5</span><span>「← 単独負担に戻す」でもとに戻せる</span></li>
     </ol>
 
-    <h3 style="margin-top:16px">便利ボタン</h3>
+    <h3 style="margin-top:16px">按分モードの便利ボタン</h3>
     <table>
       <tr><th>ボタン</th><th>動作</th></tr>
       <tr><td><span class="btn-ex">⚖ 均等割</span></td><td>チェックした会社で均等に分ける（例: 3社なら33/33/34%）</td></tr>
-      <tr><td><span class="btn-ex">↺ 100% GR</span></td><td>グローライズ100%にリセット</td></tr>
       <tr><td><span class="btn-ex">🗑 クリア</span></td><td>全部未選択にする</td></tr>
     </table>
 
-    <h3 style="margin-top:16px">最近の按分パターン（便利）</h3>
+    <h3 style="margin-top:16px">最近の按分パターン</h3>
     <p style="font-size:13px;line-height:1.6">
-      よく使う按分は、<b>最近使った3件</b>がボタンで表示されます。タップするだけで再適用できます。<br>
-      例: <span class="btn-ex">グローライズ50%/GRHD50%</span> を何度か使うと、次回からワンタップで呼び出し可能。
+      よく使う按分は「最近」ボタンで再表示されます（直近3件まで自動保存）。<br>
+      例: <span class="btn-ex">グローライズ50%/GRHD50%</span> をよく使うと、次回からワンタップで呼び出し。
     </p>
 
     <h3 style="margin-top:16px">金額指定モード</h3>
     <p style="font-size:13px;line-height:1.6">
-      %ではなく<b>具体的な金額</b>で按分したい場合は「金額指定」に切り替えます。<br>
-      例: 総額¥10,000のうち<br>
-      　 グローライズ: ¥3,000<br>
-      　 GRHD: ¥7,000<br>
-      合計が総額と一致しないと保存できません。
+      %ではなく<b>具体的な金額</b>で按分したい場合は、按分モード内の「金額指定」に切替。<br>
+      例: 総額¥10,000 → グローライズ¥3,000 / GRHD¥7,000（合計が総額と一致しないと保存不可）
     </p>
   </div>
 
-  <!-- 按分の具体例 -->
+  <!-- 具体例 -->
   <div class="card">
-    <h2>按分の具体例</h2>
+    <h2>入力の具体例</h2>
 
-    <h3>例1: GRだけで使った経費（100%GR）</h3>
+    <h3>例1: 普通の会議費 ¥3,500（GR負担）</h3>
     <p style="font-size:13px">
-      <span class="btn-ex">↺ 100% GR</span> ボタン1タップで完了。
+      撮影 → 会議費選択 → <b>現金タップ</b> → 保存<br>
+      （費用負担は最初からGR選択済みなので触らない）
     </p>
 
-    <h3 style="margin-top:12px">例2: GRとGRHDで半々</h3>
+    <h3 style="margin-top:12px">例2: GRアメックスで払った交際費（GRHD負担）</h3>
     <p style="font-size:13px">
-      ・☑ グローライズ → 50%<br>
-      ・☑ GRHD → 50%<br>
-      → 合計100% ✅
+      撮影 → 交際費選択 → <b>GRアメックスタップ</b> → <b>GRHDタップ</b>（負担社を変更）→ 保存
     </p>
 
-    <h3 style="margin-top:12px">例3: 3社で均等割</h3>
+    <h3 style="margin-top:12px">例3: ¥10,000の会食を GR/GRHD 半々で按分</h3>
     <p style="font-size:13px">
-      ・☑ グローライズ、GRHD、和信カインドをチェック<br>
-      ・<span class="btn-ex">⚖ 均等割</span> をタップ<br>
-      → 33/33/34% に自動配分
+      撮影 → 交際費 → 支払元選択 → <b>「➕ 複数の会社で按分する」</b><br>
+      → GRに50、GRHDに50入力 → 合計100% ✅ → 保存
     </p>
 
-    <h3 style="margin-top:12px">例4: 会議費 ¥10,000 を金額で指定</h3>
+    <h3 style="margin-top:12px">例4: 3社で均等割</h3>
     <p style="font-size:13px">
-      ・モードを「金額指定」に切替<br>
-      ・☑ グローライズ → ¥3,000<br>
-      ・☑ GRHD → ¥5,000<br>
-      ・☑ 和信カインド → ¥2,000<br>
-      → 合計¥10,000 ✅
+      「➕ 複数の会社で按分する」→ ☑3社チェック → <span class="btn-ex">⚖均等割</span> ボタン → 保存<br>
+      （33/33/34% に自動配分）
     </p>
   </div>
 
@@ -207,8 +215,7 @@ a{color:var(--primary);font-weight:700}
       <li>金額が1円以上になっているか</li>
       <li>店名が入っているか</li>
       <li>💳支払元を選んでいるか</li>
-      <li>🏢按分の合計が 100% になっているか（%モードの場合）</li>
-      <li>🏢按分の合計が総額と一致しているか（金額モードの場合）</li>
+      <li>🏢費用負担（単独負担時は1社選択、按分時は合計100%/総額一致）</li>
     </ul>
   </div>
 
