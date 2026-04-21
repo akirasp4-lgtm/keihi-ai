@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>使い方ガイド（社長向け）</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<style>
+:root{--primary:#7c3aed;--success:#16a34a;--border:#e5e7eb;--gray-50:#f9fafb;--gray-500:#6b7280;--gray-800:#1f2937}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,sans-serif;background:#f7f5fb;color:var(--gray-800);padding-bottom:40px}
+.header{background:var(--primary);color:white;padding:16px;position:sticky;top:0;z-index:10;
+        display:flex;align-items:center;gap:12px;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.back-btn{background:rgba(255,255,255,.2);border:none;color:white;padding:6px 12px;
+          border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none}
+.header-title{font-size:17px;font-weight:700}
+.content{max-width:640px;margin:0 auto;padding:16px 14px;display:flex;flex-direction:column;gap:16px}
+.card{background:white;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h2{font-size:16px;font-weight:700;color:var(--primary);margin-bottom:14px;
+         padding-bottom:8px;border-bottom:2px solid #ede9fe}
+.card h3{font-size:14px;font-weight:700;margin:14px 0 8px;color:#5b21b6}
+.step-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+.step-list li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.6}
+.step-num{min-width:24px;height:24px;border-radius:50%;background:var(--primary);color:white;
+          font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.url-box{background:#ede9fe;border:1.5px solid #c4b5fd;border-radius:8px;padding:12px 14px;
+         font-size:14px;font-weight:700;color:var(--primary);word-break:break-all;margin-bottom:4px}
+.copy-btn{width:100%;padding:10px;background:var(--primary);color:white;border:none;
+          border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
+.copy-btn.copied{background:var(--success)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border:1px solid var(--border);text-align:left;vertical-align:top}
+th{background:var(--gray-50);font-weight:700;white-space:nowrap}
+.note{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;
+      padding:10px 12px;font-size:13px;color:#92400e;line-height:1.6}
+.warn{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;
+      padding:10px 12px;font-size:13px;color:#991b1b;line-height:1.6}
+.tip{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;
+      padding:10px 12px;font-size:13px;color:#15803d;line-height:1.6}
+.highlight{background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;
+           padding:10px 12px;font-size:13px;color:#92400e;line-height:1.6}
+.btn-ex{display:inline-block;padding:2px 8px;border:1px solid #d1d5db;border-radius:4px;background:white;font-weight:700;font-size:12px}
+.chip-ex{display:inline-block;padding:3px 10px;border-radius:8px;background:var(--primary);color:white;font-weight:700;font-size:12px;margin:2px}
+code{background:#f3f4f6;padding:2px 5px;border-radius:4px;font-size:12px}
+kbd{background:#1f2937;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+a{color:var(--primary);font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a class="back-btn" href="president.html">← アプリへ</a>
+  <div class="header-title">使い方ガイド（社長向け）</div>
+</div>
+
+<div class="content">
+
+  <!-- URL -->
+  <div class="card">
+    <h2>アプリのURL</h2>
+    <div class="url-box" id="presUrl">https://akirasp4-lgtm.github.io/keihi-ai/president.html</div>
+    <button class="copy-btn" onclick="copyUrl('presUrl', this)">URLをコピー</button>
+    <p style="font-size:12px;color:var(--gray-500);margin-top:8px">
+      スマホのホーム画面に追加しておくと次回から楽です
+    </p>
+  </div>
+
+  <!-- 社員用との違い -->
+  <div class="card">
+    <h2>社員用アプリとの違い</h2>
+    <table>
+      <tr><th>項目</th><th>社員用</th><th>社長用（本アプリ）</th></tr>
+      <tr><td>氏名</td><td>フルネーム入力</td><td><b>小林社長</b>で固定</td></tr>
+      <tr><td>元請け・現場</td><td>必須</td><td><b>不要</b></td></tr>
+      <tr><td>支払元</td><td>-</td><td><b>現金 / GRアメックス / GRHDアメックス</b></td></tr>
+      <tr><td>按分</td><td>-</td><td><b>複数会社への費用振り分け</b></td></tr>
+    </table>
+  </div>
+
+  <!-- 入力手順 -->
+  <div class="card">
+    <h2>経費入力のながれ</h2>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>「📸 カメラで撮影」または「🖼️ 写真を選択」でレシートを取込</span></li>
+      <li><span class="step-num">2</span><span>AIが解析 → 日付・金額・店名・税率が自動入力（数秒）</span></li>
+      <li><span class="step-num">3</span><span>項目（カテゴリ）を選ぶ（会議費・交際費・駐車場代など）</span></li>
+      <li><span class="step-num">4</span><span>店名を確認（必要なら修正）</span></li>
+      <li><span class="step-num">5</span><span><b>💳 支払元</b>を選ぶ</span></li>
+      <li><span class="step-num">6</span><span><b>🏢 費用負担（按分）</b>を設定</span></li>
+      <li><span class="step-num">7</span><span>メモ入力（任意）</span></li>
+      <li><span class="step-num">8</span><span>「保存して次へ」をタップ</span></li>
+    </ol>
+  </div>
+
+  <!-- 支払元 -->
+  <div class="card">
+    <h2>💳 支払元の選び方</h2>
+    <p style="font-size:13px;line-height:1.6;margin-bottom:10px">
+      どのカード/現金で払ったかを選びます。<b>必須</b>です。
+    </p>
+    <table>
+      <tr><th>選択肢</th><th>どんなとき</th></tr>
+      <tr><td><span class="chip-ex">💴 現金</span></td><td>現金で払ったとき（立替）</td></tr>
+      <tr><td><span class="chip-ex">💳 GR</span></td><td>グローライズのアメックスで払ったとき</td></tr>
+      <tr><td><span class="chip-ex">💳 GRHD</span></td><td>GRHDのアメックスで払ったとき</td></tr>
+    </table>
+    <div class="note" style="margin-top:12px">
+      💡 会計ソフト側で自動的に「現金」か「未払金」科目に振り分けられます。
+    </div>
+  </div>
+
+  <!-- 按分 -->
+  <div class="card">
+    <h2>🏢 費用負担（按分）の設定</h2>
+    <p style="font-size:13px;line-height:1.6;margin-bottom:10px">
+      この経費を<b>どの会社が何%負担するか</b>を設定します。最大6社まで按分できます。
+    </p>
+
+    <h3>基本操作（％指定モード）</h3>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>負担する会社の<b>チェックボックス</b>を入れる</span></li>
+      <li><span class="step-num">2</span><span>それぞれに <b>％</b> を入力（例: 50）</span></li>
+      <li><span class="step-num">3</span><span>合計が<b>100%</b>になっていることを確認（✅表示）</span></li>
+      <li><span class="step-num">4</span><span>隣に自動で¥金額が表示されるので確認</span></li>
+    </ol>
+
+    <h3 style="margin-top:16px">便利ボタン</h3>
+    <table>
+      <tr><th>ボタン</th><th>動作</th></tr>
+      <tr><td><span class="btn-ex">⚖ 均等割</span></td><td>チェックした会社で均等に分ける（例: 3社なら33/33/34%）</td></tr>
+      <tr><td><span class="btn-ex">↺ 100% GR</span></td><td>グローライズ100%にリセット</td></tr>
+      <tr><td><span class="btn-ex">🗑 クリア</span></td><td>全部未選択にする</td></tr>
+    </table>
+
+    <h3 style="margin-top:16px">最近の按分パターン（便利）</h3>
+    <p style="font-size:13px;line-height:1.6">
+      よく使う按分は、<b>最近使った3件</b>がボタンで表示されます。タップするだけで再適用できます。<br>
+      例: <span class="btn-ex">グローライズ50%/GRHD50%</span> を何度か使うと、次回からワンタップで呼び出し可能。
+    </p>
+
+    <h3 style="margin-top:16px">金額指定モード</h3>
+    <p style="font-size:13px;line-height:1.6">
+      %ではなく<b>具体的な金額</b>で按分したい場合は「金額指定」に切り替えます。<br>
+      例: 総額¥10,000のうち<br>
+      　 グローライズ: ¥3,000<br>
+      　 GRHD: ¥7,000<br>
+      合計が総額と一致しないと保存できません。
+    </p>
+  </div>
+
+  <!-- 按分の具体例 -->
+  <div class="card">
+    <h2>按分の具体例</h2>
+
+    <h3>例1: GRだけで使った経費（100%GR）</h3>
+    <p style="font-size:13px">
+      <span class="btn-ex">↺ 100% GR</span> ボタン1タップで完了。
+    </p>
+
+    <h3 style="margin-top:12px">例2: GRとGRHDで半々</h3>
+    <p style="font-size:13px">
+      ・☑ グローライズ → 50%<br>
+      ・☑ GRHD → 50%<br>
+      → 合計100% ✅
+    </p>
+
+    <h3 style="margin-top:12px">例3: 3社で均等割</h3>
+    <p style="font-size:13px">
+      ・☑ グローライズ、GRHD、和信カインドをチェック<br>
+      ・<span class="btn-ex">⚖ 均等割</span> をタップ<br>
+      → 33/33/34% に自動配分
+    </p>
+
+    <h3 style="margin-top:12px">例4: 会議費 ¥10,000 を金額で指定</h3>
+    <p style="font-size:13px">
+      ・モードを「金額指定」に切替<br>
+      ・☑ グローライズ → ¥3,000<br>
+      ・☑ GRHD → ¥5,000<br>
+      ・☑ 和信カインド → ¥2,000<br>
+      → 合計¥10,000 ✅
+    </p>
+  </div>
+
+  <!-- 管理者への送付 -->
+  <div class="card">
+    <h2>管理者への送付</h2>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>画面下の「📋 リスト」タブをタップ</span></li>
+      <li><span class="step-num">2</span><span>保存されたデータ一覧を確認（支払元と按分も表示されます）</span></li>
+      <li><span class="step-num">3</span><span>「📤 管理者に送信」をタップ</span></li>
+      <li><span class="step-num">4</span><span>「✅ Googleドライブへの送信が完了しました！」と出たら完了</span></li>
+      <li><span class="step-num">5</span><span>「リストを削除しますか？」→「OK」でリストを空にする</span></li>
+    </ol>
+
+    <div class="note" style="margin-top:12px">
+      💡 データはGoogleドライブの「経費申請 / <b>小林社長</b>」フォルダに自動保存されます。
+    </div>
+  </div>
+
+  <!-- バリデーション・制約 -->
+  <div class="card">
+    <h2>保存できない場合のチェック</h2>
+    <p style="font-size:13px;line-height:1.6;margin-bottom:10px">以下を確認してください:</p>
+    <ul style="font-size:13px;line-height:1.8;padding-left:20px">
+      <li>日付が入っているか</li>
+      <li>金額が1円以上になっているか</li>
+      <li>店名が入っているか</li>
+      <li>💳支払元を選んでいるか</li>
+      <li>🏢按分の合計が 100% になっているか（%モードの場合）</li>
+      <li>🏢按分の合計が総額と一致しているか（金額モードの場合）</li>
+    </ul>
+  </div>
+
+  <!-- 会計処理のイメージ -->
+  <div class="card">
+    <h2>この按分データは経理でどう使われるか</h2>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>管理者が月次で「JDL形式CSV」を出力</span></li>
+      <li><span class="step-num">2</span><span>按分ありの経費は<b>会社別に複数行</b>に分解されて仕訳される</span></li>
+      <li><span class="step-num">3</span><span>管理者が「Amex照合CSV」を出力</span></li>
+      <li><span class="step-num">4</span><span>アメックス明細と突合 → 他社負担分を自動で集計し、立替金請求の仕訳を作成</span></li>
+    </ol>
+
+    <div class="tip" style="margin-top:12px">
+      🎯 <b>これで月末の手打ち計算が不要になります</b>
+    </div>
+  </div>
+
+  <!-- 注意 -->
+  <div class="warn">
+    📱 データはこのスマホの中にのみ保存されます。<br>
+    ブラウザのデータを消すとデータも消えるため、こまめに「管理者に送信」を押して送ってください。
+  </div>
+
+</div>
+
+<script>
+function copyUrl(id, btn) {
+  const text = document.getElementById(id).textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'URLをコピー'; btn.classList.remove('copied'); }, 2000);
+  }).catch(() => {
+    prompt('URLをコピーしてください', text);
+  });
+}
+</script>
+</body>
+</html>

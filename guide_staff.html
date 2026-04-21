@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>使い方ガイド（社員向け）</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <style>
 :root{--primary:#2563eb;--success:#16a34a;--border:#e5e7eb;--gray-50:#f9fafb;--gray-500:#6b7280;--gray-800:#1f2937}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -17,7 +19,7 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
 .card{background:white;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .card h2{font-size:16px;font-weight:700;color:var(--primary);margin-bottom:14px;
          padding-bottom:8px;border-bottom:2px solid #eff6ff}
-.card h3{font-size:14px;font-weight:700;margin:14px 0 8px}
+.card h3{font-size:14px;font-weight:700;margin:14px 0 8px;color:#1e3a5f}
 .step-list{list-style:none;display:flex;flex-direction:column;gap:10px}
 .step-list li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.6}
 .step-num{min-width:24px;height:24px;border-radius:50%;background:var(--primary);color:white;
@@ -28,12 +30,16 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
           border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
 .copy-btn.copied{background:var(--success)}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{padding:8px 10px;border:1px solid var(--border);text-align:left}
-th{background:var(--gray-50);font-weight:700}
+th,td{padding:8px 10px;border:1px solid var(--border);text-align:left;vertical-align:top}
+th{background:var(--gray-50);font-weight:700;white-space:nowrap}
 .note{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;
       padding:10px 12px;font-size:13px;color:#92400e;line-height:1.6}
 .warn{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;
       padding:10px 12px;font-size:13px;color:#991b1b;line-height:1.6}
+.tip{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;
+      padding:10px 12px;font-size:13px;color:#15803d;line-height:1.6}
+code{background:#f3f4f6;padding:2px 5px;border-radius:4px;font-size:12px}
+kbd{background:#1f2937;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
 a{color:var(--primary);font-weight:700}
 </style>
 </head>
@@ -46,7 +52,6 @@ a{color:var(--primary);font-weight:700}
 
 <div class="content">
 
-  <!-- アプリURL -->
   <div class="card">
     <h2>アプリのURL</h2>
     <div class="url-box" id="staffUrl">https://akirasp4-lgtm.github.io/keihi-ai/</div>
@@ -56,45 +61,115 @@ a{color:var(--primary);font-weight:700}
     </p>
   </div>
 
-  <!-- 経費入力 -->
   <div class="card">
-    <h2>経費の入力手順</h2>
-
+    <h2>経費入力のながれ</h2>
     <ol class="step-list">
-      <li><span class="step-num">1</span><span>「カメラで撮影」または「写真を選択」をタップしてレシートを読み込む</span></li>
-      <li><span class="step-num">2</span><span>日付・金額・店名が自動入力されるので内容を確認・修正する</span></li>
-      <li><span class="step-num">3</span><span>項目・税率・現場名を設定する</span></li>
-      <li><span class="step-num">4</span><span>「保存して次へ」をタップ</span></li>
+      <li><span class="step-num">1</span><span>氏名を<b>フルネーム</b>で入力（初回のみ。以降は記憶されます）</span></li>
+      <li><span class="step-num">2</span><span>「📸 カメラで撮影」または「🖼️ 写真を選択」でレシートを取込</span></li>
+      <li><span class="step-num">3</span><span>AIが解析 → 日付・金額・店名・税率が自動入力される（数秒）</span></li>
+      <li><span class="step-num">4</span><span>自動入力された内容を<b>確認・修正</b>する（緑色の枠は自動入力済みの印）</span></li>
+      <li><span class="step-num">5</span><span>項目（カテゴリ）を選ぶ</span></li>
+      <li><span class="step-num">6</span><span>元請け名・現場名を選ぶ（後述）</span></li>
+      <li><span class="step-num">7</span><span>「保存して次へ」をタップ</span></li>
     </ol>
 
-    <h3>入力項目の説明</h3>
+    <div class="warn" style="margin-top:14px">
+      ⚠️ <b>氏名は必ずフルネームで入力してください</b><br>
+      （予定管理アプリは苗字被り対策で省略表記になっているので、経費ではフルネームで統一します）
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>元請け・現場の選択方法（新機能）</h2>
+    <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px">
+      予定管理アプリと連携しているので、マスタから選ぶだけで入力できます。
+    </p>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>「📋 選ぶ」ボタンをタップ</span></li>
+      <li><span class="step-num">2</span><span>検索欄に現場名・元請名・工番のどれかを入力</span></li>
+      <li><span class="step-num">3</span><span>候補から該当のものをタップ → 元請・現場・工番が自動でセット</span></li>
+    </ol>
+
+    <div class="tip" style="margin-top:12px">
+      🔍 <b>検索のコツ</b><br>
+      ・漢字もひらがなで検索OK（例:「大阪」→「おおさか」でヒット）<br>
+      ・カタカナもひらがなで検索OK（例:「コーナン」→「こーなん」でヒット）<br>
+      ・工番（ICT-26-001など）でも検索OK
+    </div>
+
+    <h3 style="margin-top:16px">マスタにない現場の場合</h3>
+    <p style="font-size:13px;line-height:1.6">
+      ピッカーの「✕」で閉じて、テキスト欄に<b>直接入力</b>してください。<br>
+      新しい現場を予定管理アプリに登録してあれば、次回から検索でヒットします。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>入力項目の説明</h2>
     <table>
       <tr><th>項目</th><th>内容</th></tr>
-      <tr><td>日付</td><td>自動入力。必要に応じて修正</td></tr>
-      <tr><td>金額（税込）</td><td>自動入力。必要に応じて修正</td></tr>
-      <tr><td>税率</td><td>飲食は「軽減8%」に変更</td></tr>
-      <tr><td>項目</td><td>プルダウンから選択</td></tr>
-      <tr><td>店名・購入場所</td><td>自動入力。必要に応じて修正</td></tr>
-      <tr><td>元請け名</td><td>例：〇〇建設</td></tr>
-      <tr><td>現場名</td><td>例：〇〇邸</td></tr>
-      <tr><td>メモ</td><td>任意</td></tr>
+      <tr><td>氏名</td><td>フルネームで固定入力（初回登録後は保存される）</td></tr>
+      <tr><td>日付</td><td>AIが自動入力、必要なら修正</td></tr>
+      <tr><td>金額（税込）</td><td>AIが自動入力、必要なら修正</td></tr>
+      <tr><td>税率</td><td>10% / 軽減8%（飲食） / 対象外 から選択</td></tr>
+      <tr><td>項目</td><td>14種類から選択</td></tr>
+      <tr><td>店名</td><td>AIが自動入力、必要なら修正</td></tr>
+      <tr><td>元請け名 *</td><td>📋選ぶ or 手入力</td></tr>
+      <tr><td>現場名 *</td><td>📋選ぶ or 手入力。選ぶと🔖工番も自動表示</td></tr>
+      <tr><td>メモ</td><td>任意の補足</td></tr>
     </table>
   </div>
 
-  <!-- 管理者への送付 -->
+  <div class="card">
+    <h2>カテゴリ（項目）一覧</h2>
+    <table>
+      <tr><th>カテゴリ</th><th>例</th></tr>
+      <tr><td>🅿️ 駐車場代</td><td>パーキング利用料</td></tr>
+      <tr><td>🔧 仕入高</td><td>材料・部品・工具の購入</td></tr>
+      <tr><td>⛽ ガソリン</td><td>車両の燃料代</td></tr>
+      <tr><td>🔧 車両関係費</td><td>車両の修理・車用品</td></tr>
+      <tr><td>📦 消耗品費</td><td>材料関係以外の物品</td></tr>
+      <tr><td>✏️ 事務用品</td><td>ペン・紙などの事務用品</td></tr>
+      <tr><td>🚚 運賃</td><td>宅急便代など</td></tr>
+      <tr><td>🚕 その他交通費</td><td>タクシー・電車など</td></tr>
+      <tr><td>🛣️ 有料道路</td><td>高速道路代</td></tr>
+      <tr><td>🍵 会議費</td><td>社内飲食（社内打合せなど）</td></tr>
+      <tr><td>🍺 交際費</td><td>社外飲食（接待など）</td></tr>
+      <tr><td>💡 水道光熱</td><td>電気・ガス・水道</td></tr>
+      <tr><td>🏷️ 租税公課</td><td>印紙・手数料など</td></tr>
+      <tr><td>🩺 福利厚生</td><td>従業員向け費用</td></tr>
+    </table>
+  </div>
+
   <div class="card">
     <h2>管理者への送付</h2>
     <ol class="step-list">
-      <li><span class="step-num">1</span><span>画面下「リスト」タブをタップ</span></li>
-      <li><span class="step-num">2</span><span>「📤 管理者に送信」をタップ</span></li>
-      <li><span class="step-num">3</span><span>「✅ Googleドライブへの送信が完了しました！」と出たら完了</span></li>
-      <li><span class="step-num">4</span><span>「リストを削除しますか？」→「OK」を押してリストを空にする</span></li>
+      <li><span class="step-num">1</span><span>画面下の「📋 リスト」タブをタップ</span></li>
+      <li><span class="step-num">2</span><span>保存されたデータを確認</span></li>
+      <li><span class="step-num">3</span><span>「📤 管理者に送信」をタップ</span></li>
+      <li><span class="step-num">4</span><span>「✅ Googleドライブへの送信が完了しました！」と出たら完了</span></li>
+      <li><span class="step-num">5</span><span>「リストを削除しますか？」→「OK」でリストを空にする</span></li>
     </ol>
+    <div class="note" style="margin-top:12px">
+      💡 データはGoogleドライブの「経費申請 / <b>氏名</b>」フォルダに自動保存されます。管理者はそこから読込みます。
+    </div>
   </div>
 
-  <!-- 注意 -->
+  <div class="card">
+    <h2>トラブル対応</h2>
+    <h3>AIが金額を誤認識する</h3>
+    <p style="font-size:13px;line-height:1.6">レシートの写真が暗い・斜め・ピンボケの場合に起こりやすいです。手動で修正してください。</p>
+    <h3>「26年」の日付が違う年に読まれる</h3>
+    <p style="font-size:13px;line-height:1.6">通常は「26年 → 2026年」として認識されます。違う場合は手動で修正してください。</p>
+    <h3>送信に失敗する</h3>
+    <p style="font-size:13px;line-height:1.6">
+      電波が弱いときは時間をおいて再送信。<br>
+      どうしても送信できない場合は <kbd>ファイルで出力（バックアップ）</kbd> ボタンでJSONファイルを保存し、LINEなどで管理者に送ってください。
+    </p>
+  </div>
+
   <div class="warn">
-    データはこのスマホの中にのみ保存されます。<br>
+    📱 データはこのスマホの中にのみ保存されます。<br>
     ブラウザのデータを消すとデータも消えるため、こまめに「管理者に送信」を押して送ってください。
   </div>
 

@@ -229,6 +229,18 @@ function updateAmt(id, val) {
   const item = masterData.find(i => i.id === id);
   if (!item) return;
   item.amount = num;
+  // 按分がある場合、%を維持して各社負担額を再計算(端数は最後の社に寄せる)
+  if (Array.isArray(item.allocations) && item.allocations.length > 0) {
+    let acc = 0;
+    item.allocations.forEach((a, idx) => {
+      if (idx === item.allocations.length - 1) {
+        a.amount = num - acc;
+      } else {
+        a.amount = Math.floor(num * (Number(a.percent) || 0) / 100);
+        acc += a.amount;
+      }
+    });
+  }
   try { localStorage.setItem('mgr_v6_data', JSON.stringify(masterData)); }
   catch { console.warn('localStorage capacity reached'); }
   // 合計だけ更新（全体再描画しない→フォーカスが外れない）
@@ -502,15 +514,13 @@ function editAllocation(id) {
     <div id="edtTotal" style="margin-top:8px;padding:6px;border-radius:4px;text-align:center;font-size:12px;font-weight:700"></div>
   `;
 
-  // ラジオボタンクリック視覚更新
+  // ラジオボタンの視覚更新(change イベント)
   document.querySelectorAll('[name=edtPaySrc]').forEach(radio => {
-    radio.closest('label').addEventListener('click', () => {
-      setTimeout(() => {
-        document.querySelectorAll('[name=edtPaySrc]').forEach(r => {
-          r.closest('label').style.background = r.checked ? '#ede9fe' : 'white';
-          r.closest('label').style.borderColor = r.checked ? '#7c3aed' : '#d1d5db';
-        });
-      }, 10);
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('[name=edtPaySrc]').forEach(r => {
+        r.closest('label').style.background  = r.checked ? '#ede9fe' : 'white';
+        r.closest('label').style.borderColor = r.checked ? '#7c3aed' : '#d1d5db';
+      });
     });
   });
   // 入力で合計更新

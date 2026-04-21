@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>使い方ガイド（管理者向け）</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <style>
 :root{--primary:#2563eb;--success:#16a34a;--border:#e5e7eb;--gray-50:#f9fafb;--gray-500:#6b7280;--gray-800:#1f2937}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -34,6 +36,10 @@ th{background:var(--gray-50);font-weight:700;white-space:nowrap}
       padding:10px 12px;font-size:13px;color:#92400e;line-height:1.6}
 .warn{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;
       padding:10px 12px;font-size:13px;color:#991b1b;line-height:1.6}
+.tip{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;
+      padding:10px 12px;font-size:13px;color:#15803d;line-height:1.6}
+.pill-csv{display:inline-block;padding:2px 8px;border-radius:10px;background:#16a34a;color:white;font-size:11px;font-weight:700}
+.pill-amex{display:inline-block;padding:2px 8px;border-radius:10px;background:#7c3aed;color:white;font-size:11px;font-weight:700}
 code{background:#f3f4f6;padding:2px 5px;border-radius:4px;font-size:12px}
 a{color:var(--primary);font-weight:700}
 </style>
@@ -47,7 +53,6 @@ a{color:var(--primary);font-weight:700}
 
 <div class="content">
 
-  <!-- URL -->
   <div class="card">
     <h2>管理者画面のURL</h2>
     <div class="url-box" id="adminUrl">https://akirasp4-lgtm.github.io/keihi-ai/admin.html</div>
@@ -57,52 +62,161 @@ a{color:var(--primary);font-weight:700}
     </div>
   </div>
 
-  <!-- データ取込 -->
   <div class="card">
     <h2>経費データの取込</h2>
     <ol class="step-list">
-      <li><span class="step-num">1</span><span>社員が「📤 管理者に送信」を押すと自動でGoogleドライブの「経費申請」フォルダに保存される</span></li>
+      <li><span class="step-num">1</span><span>社員/社長が「📤 管理者に送信」を押すと自動でGoogleドライブの「経費申請」フォルダに保存される</span></li>
       <li><span class="step-num">2</span><span>Googleドライブを開き、人物ごとのフォルダからJSONファイルをPCにダウンロードする</span></li>
       <li><span class="step-num">3</span><span>管理者画面のドロップゾーンにファイルを<b>ドラッグ＆ドロップ</b>（複数人分を一度に取り込めます）</span></li>
     </ol>
     <p style="font-size:13px;color:var(--gray-500);margin-top:12px">
       取込後は人物ごとにレシート画像・金額・項目が一覧表示されます。金額は画面上で直接修正できます。
     </p>
+
+    <div class="tip" style="margin-top:12px">
+      🔖 現場名の横に工番（例: <code>ICT-26-001</code>）が紫色で表示されます。予定管理アプリの現場マスタと連動しています。
+    </div>
   </div>
 
-  <!-- CSV出力 -->
+  <!-- 社長分の按分編集 -->
   <div class="card">
-    <h2>JDL形式CSVの出力</h2>
+    <h2>社長分の按分編集（新機能）</h2>
+    <p style="font-size:13px;line-height:1.6;margin-bottom:10px">
+      社長（小林社長）のレシートには<b>💳支払元</b>と<b>🏢会社按分</b>が表示されます。
+      受信後に修正したい場合は「✏️ 按分編集」ボタンで編集できます。
+    </p>
+
+    <h3>編集モーダルの使い方</h3>
     <ol class="step-list">
-      <li><span class="step-num">1</span><span>画面右上「<b>JDL形式CSV出力</b>」ボタンをクリック</span></li>
-      <li><span class="step-num">2</span><span><code>JDL取込_YYYY-MM-DD.csv</code> がダウンロードされる</span></li>
+      <li><span class="step-num">1</span><span>該当レシートカードの「✏️ 按分編集」をクリック</span></li>
+      <li><span class="step-num">2</span><span>💳支払元を変更（現金/GRアメックス/GRHDアメックス）</span></li>
+      <li><span class="step-num">3</span><span>🏢会社ごとにチェック＋％入力で按分を変更</span></li>
+      <li><span class="step-num">4</span><span>合計が100%になっていることを確認（✅表示）</span></li>
+      <li><span class="step-num">5</span><span>「💾 保存」ボタンで確定</span></li>
+    </ol>
+
+    <div class="note" style="margin-top:12px">
+      💡 金額を直接編集した場合も、按分は自動で再計算されます（％を維持、端数は最後の社に吸収）。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2種類のCSV出力</h2>
+
+    <h3><span class="pill-csv">JDL形式CSV</span> JDL会計ソフトへの取込用</h3>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>画面右上「<b>JDL形式CSV</b>」ボタンをクリック</span></li>
+      <li><span class="step-num">2</span><span><code>JDL取込_YYYY-MM-DD.csv</code> がダウンロードされる（Shift-JIS形式）</span></li>
       <li><span class="step-num">3</span><span>JDL会計ソフトにCSVを取り込む</span></li>
     </ol>
 
-    <h3>CSVの列構成（JDL仕様・30列）</h3>
+    <div class="tip" style="margin-top:8px">
+      💡 社長の按分ありレシートは<b>会社別に複数行</b>に分解されて出力されます。<br>
+      例: GR:50%/GRHD:50% の¥10,000レシート → GR:¥5,000 と GRHD:¥5,000 の2行
+    </div>
+
+    <h3 style="margin-top:18px"><span class="pill-amex">Amex照合CSV</span> アメックス明細との突合用</h3>
+    <ol class="step-list">
+      <li><span class="step-num">1</span><span>画面右上「<b>Amex照合CSV</b>」ボタンをクリック</span></li>
+      <li><span class="step-num">2</span><span><code>Amex照合_YYYY-MM-DD.csv</code> がダウンロードされる（Shift-JIS形式）</span></li>
+      <li><span class="step-num">3</span><span>会社から受け取ったアメックス明細CSVと日付・金額で突合させる</span></li>
+      <li><span class="step-num">4</span><span>「利用会社が負担すべき分」と「他社に請求すべき分」を判別して仕訳</span></li>
+    </ol>
+
+    <div class="note" style="margin-top:8px">
+      💡 支払元が<b>GRアメックス or GRHDアメックス</b>のレシートだけが出力対象。現金分は含まれません。
+    </div>
+  </div>
+
+  <!-- JDL CSV仕様 -->
+  <div class="card">
+    <h2>JDL形式CSVの構造</h2>
+
+    <h3>ファイル冒頭（4行）</h3>
+    <table>
+      <tr><th>行</th><th>内容</th></tr>
+      <tr><td>1行目</td><td><code>// 0002 株式会社グローライズ 令和N年 3月31日決算</code></td></tr>
+      <tr><td>2行目</td><td><code>// 出力期間 ： YYYYMMDD ～ YYYYMMDD</code></td></tr>
+      <tr><td>3行目</td><td>空行（先頭に半角スペース付き）</td></tr>
+      <tr><td>4行目〜</td><td>列タイトル ＋ データ</td></tr>
+    </table>
+
+    <h3>列構成（30列）</h3>
     <table>
       <tr><th>列名</th><th>内容</th></tr>
       <tr><td>識別フラグ</td><td><code>1000</code> 固定</td></tr>
-      <tr><td>伝番</td><td>連番（001〜）</td></tr>
       <tr><td>日付</td><td>YYYYMMDD形式</td></tr>
-      <tr><td>借方科目名称</td><td>旅費交通費 / 車両費 / 消耗品費 など</td></tr>
-      <tr><td>借方補助名称</td><td>駐車場代 / ガソリン / その他交通費 など</td></tr>
+      <tr><td>借方科目名称</td><td>旅費交通 / 車両費 / 消耗品費 など（大項目の短名称）</td></tr>
+      <tr><td>借方補助名称</td><td>駐車場代 / ガソリン / 有料道路 など（中項目）</td></tr>
       <tr><td>借方課区</td><td>仕入 / 対象外</td></tr>
-      <tr><td>借方税区</td><td>10% / 軽減8% / 対象外</td></tr>
-      <tr><td>借方税入力方法</td><td><code>内税</code> 固定</td></tr>
-      <tr><td>借方金額</td><td>税込金額</td></tr>
+      <tr><td>借方税区</td><td>10% / 軽減8% / （対象外は空欄）</td></tr>
+      <tr><td>借方税入力方法</td><td><code>内税</code>（対象外は空欄）</td></tr>
+      <tr><td>借方金額</td><td>税込金額（按分時は各社の負担額）</td></tr>
       <tr><td>借方消費税</td><td>自動計算（内税方式）</td></tr>
-      <tr><td>貸方科目名称</td><td><code>現金</code> 固定</td></tr>
+      <tr><td>貸方科目名称</td><td><b>現金</b>（現金支払時）／<b>未払金</b>（カード支払時）</td></tr>
       <tr><td>貸方金額</td><td>借方金額と同額</td></tr>
-      <tr><td>摘要</td><td>店名 ＋ [元請け / 現場] ＋ メモ</td></tr>
-      <tr><td>借方部門名称</td><td>申請者名</td></tr>
-      <tr><td>貸方部門名称</td><td>申請者名</td></tr>
+      <tr><td>摘要</td><td>店名 ＋ [元請け/現場] ＋ 工番 ＋ メモ ＋ (申請者) ＋ [支払カード] ＋ 《会社名 N%負担》</td></tr>
+    </table>
+
+    <div class="note" style="margin-top:12px">
+      💡 <b>文字コード</b>: Shift-JIS(CP932)。ExcelでCSV(カンマ区切り)形式で開けます。
+    </div>
+  </div>
+
+  <!-- Amex照合CSV仕様 -->
+  <div class="card">
+    <h2>Amex照合CSVの構造</h2>
+
+    <h3>列構成（動的）</h3>
+    <table>
+      <tr><th>列名</th><th>内容</th></tr>
+      <tr><td>利用日</td><td>YYYY-MM-DD</td></tr>
+      <tr><td>利用店名</td><td>レシート上の店名</td></tr>
+      <tr><td>カテゴリ</td><td>会議費/交際費/駐車場代 など</td></tr>
+      <tr><td>総額</td><td>税込総額</td></tr>
+      <tr><td>税率</td><td>10% / 8% / 0%</td></tr>
+      <tr><td>支払カード</td><td>GRアメックス / GRHDアメックス</td></tr>
+      <tr><td>グローライズ_負担額 / %</td><td>各社ごとに 負担額と% の2列ずつ</td></tr>
+      <tr><td>GRHD_負担額 / %</td><td>同上</td></tr>
+      <tr><td>...（登場した会社ごとに追加）</td><td></td></tr>
+      <tr><td>按分未設定</td><td>按分されていないレシートは <code>⚠️要按分</code> と表示</td></tr>
+      <tr><td>申請者</td><td>小林社長（固定）</td></tr>
+      <tr><td>メモ</td><td>レシートのメモ</td></tr>
+    </table>
+
+    <div class="tip" style="margin-top:12px">
+      📋 月末に使える運用例:<br>
+      1. アメックスから明細CSVをダウンロード<br>
+      2. このAmex照合CSVをExcelで開く<br>
+      3. 日付＋総額でVLOOKUPなどで突合<br>
+      4. 各社の負担額が分かるので、立替金処理や社内請求の仕訳を作成
+    </div>
+  </div>
+
+  <!-- カテゴリ全 -->
+  <div class="card">
+    <h2>カテゴリと借方科目の対応</h2>
+    <table>
+      <tr><th>カテゴリ</th><th>借方科目名称</th><th>借方補助名称</th><th>税区</th></tr>
+      <tr><td>駐車場代</td><td>旅費交通</td><td>駐車場代</td><td>10%</td></tr>
+      <tr><td>仕入高</td><td>仕入高</td><td>-</td><td>10%</td></tr>
+      <tr><td>ガソリン</td><td>車両費</td><td>ガソリン</td><td>10%</td></tr>
+      <tr><td>車両関係費 <span style="color:#dc2626">(新)</span></td><td>車両費</td><td>車両関係費</td><td>10%</td></tr>
+      <tr><td>消耗品費</td><td>消耗品費</td><td>-</td><td>10%</td></tr>
+      <tr><td>事務用品</td><td>事務用品</td><td>-</td><td>10%</td></tr>
+      <tr><td>運賃</td><td>運賃</td><td>-</td><td>10%</td></tr>
+      <tr><td>その他交通費</td><td>旅費交通</td><td>その他交通費</td><td>10%</td></tr>
+      <tr><td>有料道路 <span style="color:#dc2626">(新)</span></td><td>旅費交通</td><td>有料道路</td><td>10%</td></tr>
+      <tr><td>会議費</td><td>会議費</td><td>-</td><td>10%</td></tr>
+      <tr><td>交際費</td><td>交際費</td><td>-</td><td>10%</td></tr>
+      <tr><td>水道光熱</td><td>水道光熱</td><td>-</td><td>10%</td></tr>
+      <tr><td>租税公課</td><td>租税公課</td><td>-</td><td>対象外</td></tr>
+      <tr><td>福利厚生</td><td>福利厚生</td><td>-</td><td>10%</td></tr>
     </table>
   </div>
 
-  <!-- 注意 -->
   <div class="warn">
-    取込データはこのPCのブラウザ内に保存されます。<br>
+    📁 取込データはこのPCのブラウザ内に保存されます。<br>
     ブラウザのデータを削除するとデータが消えます。CSV出力は月次などで定期的に行ってください。
   </div>
 
