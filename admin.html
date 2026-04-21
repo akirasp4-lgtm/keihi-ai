@@ -203,9 +203,7 @@ function renderBoard() {
                   ${i.paymentSource
                     ? `<div style="font-size:11px;color:#92400e;margin-top:2px">💳 ${esc(i.paymentSource)}</div>` : ''}
                   ${Array.isArray(i.allocations) && i.allocations.length
-                    ? (i.allocations.length === 1 && i.allocations[0].percent === 100
-                        ? `<div style="font-size:11px;color:#5b21b6;margin-top:2px">🏢 ${esc(i.allocations[0].company)}（単独）</div>`
-                        : `<div style="font-size:11px;color:#5b21b6;margin-top:2px">🏢 ${i.allocations.map(a => esc(a.company)+esc(String(a.percent))+'%').join(' / ')}</div>`)
+                    ? `<div style="font-size:11px;color:#5b21b6;margin-top:2px">🏢 ${i.allocations.map(a => esc(a.company)+esc(String(a.percent))+'%').join(' / ')}</div>`
                     : ''}
                   ${(i.paymentSource || i.allocations)
                     ? `<button onclick="editAllocation(${i.id})" style="font-size:10px;margin-top:4px;padding:3px 8px;border:1px solid #c4b5fd;background:#ede9fe;color:#5b21b6;border-radius:4px;cursor:pointer">✏️ 按分編集</button>` : ''}
@@ -336,17 +334,13 @@ function exportJDL() {
         }))
       : [{ amount: e.amount, company: '', percent: null }];
 
-    // 単独負担(1社100%) / 按分(複数) を判別して摘要の文言を切替
-    const isSingle = rowsForExp.length === 1 && rowsForExp[0].percent === 100;
-
     rowsForExp.forEach(r => {
       const amt = r.amount;
       const tAmt = taxRate === 0 ? 0 : Math.floor(amt * taxRate / taxDenom);
       let tekiyou = tekiyouBase;
-      if (r.company) {
-        if (isSingle)       tekiyou += ` 《${r.company} 単独負担》`;
-        else if (r.percent != null) tekiyou += ` 《${r.company} ${r.percent}%負担》`;
-        else                tekiyou += ` 《${r.company}負担》`;
+      // 按分ありの場合のみ会社+%を摘要に追加(按分なしは通常の経費扱い)
+      if (r.company && r.percent != null) {
+        tekiyou += ` 《${r.company} ${r.percent}%負担》`;
       }
 
       rows.push([
@@ -446,11 +440,8 @@ function exportAmexReconcile() {
       companyAmt[a.company] = a.amount || Math.floor(total * (a.percent||0) / 100);
       companyPct[a.company] = a.percent;
     });
-    // 種別: 単独/按分/未設定
-    let kind;
-    if (!alloc.length) kind = '⚠️要按分';
-    else if (alloc.length === 1 && alloc[0].percent === 100) kind = '単独';
-    else kind = '按分';
+    // 種別: 按分なし / 按分
+    const kind = alloc.length ? '按分' : '按分なし';
 
     const row = [
       e.date || '',
