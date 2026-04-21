@@ -416,9 +416,12 @@ function setAllocValue(company, value) {
     if (allocMode === 'pct') remainder = Math.max(0, 100 - curVal);
     else                     remainder = Math.max(0, total - curVal);
     const base = Math.floor(remainder / others.length);
-    const extra = remainder - base * others.length;  // 端数(%は高々others.length - 1)
+    const extra = remainder - base * others.length;  // 端数
+    // 端数はGRHDに寄せる(GRHDが他社リストに無ければ最後の社へ)
+    const grhdIdx = others.indexOf('GRHD');
+    const extraIdx = grhdIdx >= 0 ? grhdIdx : others.length - 1;
     others.forEach((otherC, idx) => {
-      const val = base + (idx === others.length - 1 ? extra : 0);
+      const val = base + (idx === extraIdx ? extra : 0);
       allocData[otherC].value = val;
       const otherInput = document.querySelector(`#ali-${CSS.escape(otherC)}`);
       if (otherInput) otherInput.value = val;
@@ -755,15 +758,22 @@ function buildAllocations(total) {
       alert(`按分合計が ${sum.toFixed(1)}% です。100% になるよう調整してください。`);
       return null;
     }
-    // %→¥変換。端数は最後の会社に寄せる
+    // %→¥変換。端数はGRHDに寄せる(無ければ最後の会社)
+    const grhdIdx = values.findIndex(v => v.company === 'GRHD');
+    const absorbIdx = grhdIdx >= 0 ? grhdIdx : values.length - 1;
     let acc = 0;
-    const result = values.map((v, i) => {
-      let amount;
-      if (i === values.length - 1) amount = total - acc;
-      else { amount = Math.floor(total * v.value / 100); acc += amount; }
-      return { company: v.company, percent: Number(v.value), amount };
+    const amounts = new Array(values.length);
+    values.forEach((v, i) => {
+      if (i === absorbIdx) return;
+      amounts[i] = Math.floor(total * v.value / 100);
+      acc += amounts[i];
     });
-    return result;
+    amounts[absorbIdx] = total - acc;
+    return values.map((v, i) => ({
+      company: v.company,
+      percent: Number(v.value),
+      amount:  amounts[i],
+    }));
   } else {
     // 金額モード: 合計=総額 必須
     if (sum !== total) {

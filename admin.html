@@ -230,17 +230,17 @@ function updateAmt(id, val) {
   const item = masterData.find(i => i.id === id);
   if (!item) return;
   item.amount = num;
-  // 按分がある場合、%を維持して各社負担額を再計算(端数は最後の社に寄せる)
+  // 按分がある場合、%を維持して各社負担額を再計算(端数はGRHDに寄せる、無ければ最後)
   if (Array.isArray(item.allocations) && item.allocations.length > 0) {
+    const grhdIdx = item.allocations.findIndex(a => a.company === 'GRHD');
+    const absorbIdx = grhdIdx >= 0 ? grhdIdx : item.allocations.length - 1;
     let acc = 0;
     item.allocations.forEach((a, idx) => {
-      if (idx === item.allocations.length - 1) {
-        a.amount = num - acc;
-      } else {
-        a.amount = Math.floor(num * (Number(a.percent) || 0) / 100);
-        acc += a.amount;
-      }
+      if (idx === absorbIdx) return;
+      a.amount = Math.floor(num * (Number(a.percent) || 0) / 100);
+      acc += a.amount;
     });
+    item.allocations[absorbIdx].amount = num - acc;
   }
   try { localStorage.setItem('mgr_v6_data', JSON.stringify(masterData)); }
   catch { console.warn('localStorage capacity reached'); }
@@ -574,12 +574,18 @@ function saveAllocEdit() {
   if (!newAlloc.length) { alert('1社以上選択して%を入力してください'); return; }
   if (Math.abs(sum - 100) > 0.1) { alert(`合計が ${sum.toFixed(1)}% です。100%に調整してください。`); return; }
 
-  // %→¥変換(端数は最後の社に寄せる)
-  let acc = 0;
-  newAlloc.forEach((a, i) => {
-    if (i === newAlloc.length - 1) a.amount = total - acc;
-    else { a.amount = Math.floor(total * a.percent / 100); acc += a.amount; }
-  });
+  // %→¥変換(端数はGRHDに寄せる、無ければ最後の社)
+  {
+    const grhdIdx = newAlloc.findIndex(a => a.company === 'GRHD');
+    const absorbIdx = grhdIdx >= 0 ? grhdIdx : newAlloc.length - 1;
+    let acc = 0;
+    newAlloc.forEach((a, i) => {
+      if (i === absorbIdx) return;
+      a.amount = Math.floor(total * a.percent / 100);
+      acc += a.amount;
+    });
+    newAlloc[absorbIdx].amount = total - acc;
+  }
 
   item.paymentSource = newPaySrc;
   item.allocations = newAlloc;
