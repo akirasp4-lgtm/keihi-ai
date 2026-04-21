@@ -46,9 +46,10 @@ body{font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px;
 
 <header class="header">
   <div class="header-title">会社経費 管理ダッシュボード</div>
-  <div style="display:flex;gap:8px">
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
     <a href="guide_admin.html" class="btn" style="background:#1e3a5f;color:white;text-decoration:none">使い方</a>
-    <button class="btn btn-success" onclick="exportJDL()">JDL形式CSV出力</button>
+    <button class="btn btn-success" onclick="exportJDL()">JDL形式CSV</button>
+    <button class="btn" style="background:#7c3aed;color:white" onclick="exportAmexReconcile()">Amex照合CSV</button>
     <button class="btn btn-danger"  onclick="clearAll()">リセット</button>
   </div>
 </header>
@@ -68,6 +69,21 @@ body{font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px;
 
 <div id="modal" onclick="this.style.display='none'">
   <img id="modalImg" alt="レシート拡大">
+</div>
+
+<!-- 按分編集モーダル -->
+<div id="allocModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:250;align-items:center;justify-content:center;padding:12px">
+  <div style="background:white;border-radius:12px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="margin:0;font-size:16px">按分を編集</h3>
+      <button onclick="closeAllocModal()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div id="allocModalBody" style="font-size:13px"></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button onclick="saveAllocEdit()" class="btn btn-success" style="padding:10px 14px;border-radius:6px;border:none;color:white;background:#16a34a;font-weight:700;cursor:pointer;flex:1">💾 保存</button>
+      <button onclick="closeAllocModal()" style="padding:10px 14px;border-radius:6px;border:1px solid #d1d5db;background:white;font-weight:700;cursor:pointer">キャンセル</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -184,6 +200,12 @@ function renderBoard() {
                     ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">${esc(i.motouke)} / ${esc(i.genba)}</div>` : ''}
                   ${i.jobNo
                     ? `<div style="font-size:11px;color:#7c3aed;margin-top:2px">🔖 ${esc(i.jobNo)}</div>` : ''}
+                  ${i.paymentSource
+                    ? `<div style="font-size:11px;color:#92400e;margin-top:2px">💳 ${esc(i.paymentSource)}</div>` : ''}
+                  ${Array.isArray(i.allocations) && i.allocations.length
+                    ? `<div style="font-size:11px;color:#5b21b6;margin-top:2px">🏢 ${i.allocations.map(a => esc(a.company)+esc(String(a.percent))+'%').join(' / ')}</div>` : ''}
+                  ${(i.paymentSource || i.allocations)
+                    ? `<button onclick="editAllocation(${i.id})" style="font-size:10px;margin-top:4px;padding:3px 8px;border:1px solid #c4b5fd;background:#ede9fe;color:#5b21b6;border-radius:4px;cursor:pointer">✏️ 按分編集</button>` : ''}
                 </div>
               </div>`).join('')}
           </div>
@@ -270,52 +292,74 @@ function exportJDL() {
     const cat      = CAT_MAP[e.category] || { account:e.category||'諸経費', sub:'', taxArea:'仕入' };
     const taxRate  = Number(e.tax ?? 10);
     const taxDenom = taxRate === 0 ? 1 : 100 + taxRate;
-    const taxAmt   = taxRate === 0 ? 0 : Math.floor(e.amount * taxRate / taxDenom);
     // 税率0(対象外)は 課区/税区/税入力方法 をすべて空欄(サンプルCSV仕様)
     const taxLabel  = taxRate === 0 ? '' : (taxRate === 8 ? '軽減8%' : '10%');
     const taxArea   = taxRate === 0 ? '' : (cat.taxArea || '仕入');
     const taxMethod = taxRate === 0 ? '' : '内税';
     const dateJdl   = (e.date || '').replace(/-/g, '');
 
-    // 摘要: 店名 [元請け/現場] 工番 メモ (申請者)
-    let tekiyou = e.store || '';
-    if (e.motouke || e.genba) tekiyou += ` [${e.motouke||''}/${e.genba||''}]`;
-    if (e.jobNo) tekiyou += ` #${e.jobNo}`;
-    if (e.memo)  tekiyou += ` ${e.memo}`;
-    if (e.name)  tekiyou += ` (${e.name})`;
+    // 貸方科目名称: 支払元が現金なら「現金」、カードなら「未払金」
+    const kashikataMei =
+      e.paymentSource === 'GRアメックス'   ? '未払金' :
+      e.paymentSource === 'GRHDアメックス' ? '未払金' :
+      '現金';
 
-    rows.push([
-      '1000',         // 1 識別フラグ
-      '',             // 2 伝番(空:JDLが自動採番)
-      dateJdl,        // 3 日付 YYYYMMDD
-      '',             // 4 借方科目コード
-      f(cat.account), // 5 借方科目名称(大項目=短名称)
-      '',             // 6 借方科目正式名称(空:JDLが自動補完)
-      '',             // 7 借方補助コード
-      f(cat.sub),     // 8 借方補助名称(中項目)
-      taxArea,        // 9 借方課区
-      taxLabel,       // 10 借方税区
-      taxMethod,      // 11 借方税入力方法
-      e.amount,       // 12 借方金額(税込)
-      taxAmt,         // 13 借方消費税
-      '',             // 14 貸方科目コード
-      '現金',         // 15 貸方科目名称
-      '',             // 16 貸方科目正式名称(空)
-      '',             // 17 貸方補助コード
-      '',             // 18 貸方補助名称
-      '',             // 19 貸方課区
-      '',             // 20 貸方税区
-      '',             // 21 貸方税入力方法
-      e.amount,       // 22 貸方金額
-      '',             // 23 貸方消費税
-      f(tekiyou),     // 24 摘要
-      '',             // 25 借方取引科目
-      '',             // 26 貸方取引科目
-      '',             // 27 借方部門コード
-      '',             // 28 借方部門名称(空:JDL未登録部門はエラーになるため)
-      '',             // 29 貸方部門コード
-      '',             // 30 貸方部門名称
-    ].join(','));
+    // 摘要ベース: 店名 [元請け/現場] 工番 メモ (申請者)
+    let tekiyouBase = e.store || '';
+    if (e.motouke || e.genba) tekiyouBase += ` [${e.motouke||''}/${e.genba||''}]`;
+    if (e.jobNo)               tekiyouBase += ` #${e.jobNo}`;
+    if (e.memo)                tekiyouBase += ` ${e.memo}`;
+    if (e.name)                tekiyouBase += ` (${e.name})`;
+    if (e.paymentSource && e.paymentSource !== '現金') tekiyouBase += ` [${e.paymentSource}]`;
+
+    // 按分あり → 会社別に複数行、なし → 1行
+    const rowsForExp = (Array.isArray(e.allocations) && e.allocations.length > 0)
+      ? e.allocations.map(a => ({
+          amount:  a.amount || Math.floor(e.amount * (a.percent || 0) / 100),
+          company: a.company,
+          percent: a.percent,
+        }))
+      : [{ amount: e.amount, company: '', percent: null }];
+
+    rowsForExp.forEach(r => {
+      const amt = r.amount;
+      const tAmt = taxRate === 0 ? 0 : Math.floor(amt * taxRate / taxDenom);
+      let tekiyou = tekiyouBase;
+      if (r.company) tekiyou += ` 《${r.company}${r.percent != null ? ' ' + r.percent + '%' : ''}負担》`;
+
+      rows.push([
+        '1000',            // 1 識別フラグ
+        '',                // 2 伝番
+        dateJdl,           // 3 日付
+        '',                // 4 借方科目コード
+        f(cat.account),    // 5 借方科目名称
+        '',                // 6 借方科目正式名称
+        '',                // 7 借方補助コード
+        f(cat.sub),        // 8 借方補助名称
+        taxArea,           // 9 借方課区
+        taxLabel,          // 10 借方税区
+        taxMethod,         // 11 借方税入力方法
+        amt,               // 12 借方金額
+        tAmt,              // 13 借方消費税
+        '',                // 14 貸方科目コード
+        kashikataMei,      // 15 貸方科目名称(現金 or 未払金)
+        '',                // 16 貸方科目正式名称
+        '',                // 17 貸方補助コード
+        '',                // 18 貸方補助名称
+        '',                // 19 貸方課区
+        '',                // 20 貸方税区
+        '',                // 21 貸方税入力方法
+        amt,               // 22 貸方金額
+        '',                // 23 貸方消費税
+        f(tekiyou),        // 24 摘要(会社名が追記される)
+        '',                // 25 借方取引科目
+        '',                // 26 貸方取引科目
+        '',                // 27 借方部門コード
+        '',                // 28 借方部門名称
+        '',                // 29 貸方部門コード
+        '',                // 30 貸方部門名称
+      ].join(','));
+    });
   });
 
   // ===== Shift-JIS(CP932)にエンコード =====
@@ -341,6 +385,200 @@ function exportJDL() {
 
 function esc(s)  { return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
 function csv2(s) { return String(s||'').replace(/"/g, '""'); }
+
+// ================================================================
+// アメックス照合CSV出力(Amex支払データのみ、会社別負担額を展開)
+// ================================================================
+function exportAmexReconcile() {
+  const amexData = masterData.filter(e =>
+    e.paymentSource === 'GRアメックス' || e.paymentSource === 'GRHDアメックス'
+  );
+  if (!amexData.length) {
+    alert('アメックスで支払った経費データがありません。\n(支払元が GR/GRHDアメックス のレコードのみが対象です)');
+    return;
+  }
+
+  // 登場する全会社を横並びに
+  const companiesUsed = Array.from(new Set(
+    amexData.flatMap(e => (e.allocations || []).map(a => a.company))
+  ));
+  // 登場会社がなければ、従来の6社セットを使う
+  const cols = companiesUsed.length ? companiesUsed : ['グローライズ','GRHD','和信カインド','ビジネスサポート','ラーテル','GRミツマ'];
+
+  const header = ['利用日','利用店名','カテゴリ','総額','税率','支払カード',
+                  ...cols.flatMap(c => [c + '_負担額', c + '_%']),
+                  '按分未設定','申請者','メモ'];
+
+  const f = v => {
+    const s = String(v == null ? '' : v);
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const rows = [header.map(f).join(',')];
+  amexData.forEach(e => {
+    const total = Number(e.amount) || 0;
+    const alloc = e.allocations || [];
+    const companyAmt = {};
+    const companyPct = {};
+    alloc.forEach(a => {
+      companyAmt[a.company] = a.amount || Math.floor(total * (a.percent||0) / 100);
+      companyPct[a.company] = a.percent;
+    });
+    const row = [
+      e.date || '',
+      e.store || '',
+      e.category || '',
+      total,
+      (e.tax || 10) + '%',
+      e.paymentSource || '',
+      ...cols.flatMap(c => [companyAmt[c] || '', companyPct[c] ? companyPct[c] + '%' : '']),
+      alloc.length ? '' : '⚠️要按分',
+      e.name || '',
+      e.memo || '',
+    ];
+    rows.push(row.map(f).join(','));
+  });
+
+  const csvText = rows.join('\r\n') + '\r\n';
+  let blob;
+  if (typeof Encoding !== 'undefined') {
+    const sjis = Encoding.convert(csvText, { to:'SJIS', from:'UNICODE', type:'array' });
+    blob = new Blob([new Uint8Array(sjis)], { type:'text/csv' });
+  } else {
+    blob = new Blob(['\uFEFF' + csvText], { type:'text/csv;charset=utf-8' });
+  }
+  const d       = new Date();
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const a       = document.createElement('a');
+  const url     = URL.createObjectURL(blob);
+  a.href        = url;
+  a.download    = `Amex照合_${dateStr}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ================================================================
+// 按分編集モーダル
+// ================================================================
+const COMPANIES = ['グローライズ', 'GRHD', '和信カインド', 'ビジネスサポート', 'ラーテル', 'GRミツマ'];
+const PAY_SOURCES = ['現金', 'GRアメックス', 'GRHDアメックス'];
+let editingItemId = null;
+
+function editAllocation(id) {
+  const item = masterData.find(x => x.id === id);
+  if (!item) return;
+  editingItemId = id;
+  const currentSrc = item.paymentSource || '';
+  const currentAlloc = item.allocations || [];
+  const total = Number(item.amount) || 0;
+
+  const paySrcRow = PAY_SOURCES.map(s =>
+    `<label style="flex:1;min-width:80px;padding:8px;border:1.5px solid ${s===currentSrc?'#7c3aed':'#d1d5db'};border-radius:6px;background:${s===currentSrc?'#ede9fe':'white'};text-align:center;font-weight:700;cursor:pointer;font-size:12px">
+      <input type="radio" name="edtPaySrc" value="${s}" ${s===currentSrc?'checked':''} style="display:none">
+      ${esc(s)}
+    </label>`
+  ).join('');
+
+  const companyRows = COMPANIES.map(c => {
+    const a = currentAlloc.find(x => x.company === c);
+    const checked = a ? 'checked' : '';
+    const val = a ? a.percent : '';
+    return `
+      <div style="display:grid;grid-template-columns:auto 1fr 80px 80px;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #f3f4f6">
+        <input type="checkbox" class="edt-chk" data-c="${c}" ${checked} style="width:18px;height:18px">
+        <span style="font-size:12px">${esc(c)}</span>
+        <input type="number" class="edt-val" data-c="${c}" value="${val}" placeholder="0"
+               style="padding:5px;border:1px solid #d1d5db;border-radius:4px;text-align:right;font-size:12px">
+        <span style="font-size:11px;color:#6b7280;text-align:right">%</span>
+      </div>`;
+  }).join('');
+
+  document.getElementById('allocModalBody').innerHTML = `
+    <div style="margin-bottom:10px;font-size:12px;color:#6b7280">総額: <b style="color:#1f2937">¥${total.toLocaleString()}</b> / ${esc(item.store)} / ${esc(item.date)}</div>
+    <div style="margin-bottom:10px"><b>💳 支払元</b></div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">${paySrcRow}</div>
+    <div style="margin-bottom:6px"><b>🏢 費用負担（％指定）</b></div>
+    <div style="border:1px solid #e5e7eb;border-radius:6px;padding:8px">${companyRows}</div>
+    <div id="edtTotal" style="margin-top:8px;padding:6px;border-radius:4px;text-align:center;font-size:12px;font-weight:700"></div>
+  `;
+
+  // ラジオボタンクリック視覚更新
+  document.querySelectorAll('[name=edtPaySrc]').forEach(radio => {
+    radio.closest('label').addEventListener('click', () => {
+      setTimeout(() => {
+        document.querySelectorAll('[name=edtPaySrc]').forEach(r => {
+          r.closest('label').style.background = r.checked ? '#ede9fe' : 'white';
+          r.closest('label').style.borderColor = r.checked ? '#7c3aed' : '#d1d5db';
+        });
+      }, 10);
+    });
+  });
+  // 入力で合計更新
+  document.querySelectorAll('.edt-chk, .edt-val').forEach(el => el.addEventListener('input', updateEditTotal));
+  document.querySelectorAll('.edt-chk').forEach(el => el.addEventListener('change', updateEditTotal));
+  updateEditTotal();
+
+  document.getElementById('allocModal').style.display = 'flex';
+}
+
+function updateEditTotal() {
+  let sum = 0;
+  document.querySelectorAll('.edt-chk').forEach(chk => {
+    if (chk.checked) {
+      const c = chk.dataset.c;
+      const v = Number(document.querySelector(`.edt-val[data-c="${c}"]`).value) || 0;
+      sum += v;
+    }
+  });
+  const el = document.getElementById('edtTotal');
+  const ok = Math.abs(sum - 100) < 0.1;
+  el.textContent = `合計: ${sum.toFixed(1)}%` + (ok ? ' ✅' : ` (残り ${(100-sum).toFixed(1)}%)`);
+  el.style.background = ok ? '#dcfce7' : '#fee2e2';
+  el.style.color = ok ? '#166534' : '#991b1b';
+}
+
+function saveAllocEdit() {
+  const item = masterData.find(x => x.id === editingItemId);
+  if (!item) return;
+  const total = Number(item.amount) || 0;
+  const newPaySrc = (document.querySelector('[name=edtPaySrc]:checked') || {}).value || '';
+
+  const newAlloc = [];
+  let sum = 0;
+  document.querySelectorAll('.edt-chk').forEach(chk => {
+    if (!chk.checked) return;
+    const c = chk.dataset.c;
+    const v = Number(document.querySelector(`.edt-val[data-c="${c}"]`).value) || 0;
+    if (v <= 0) return;
+    sum += v;
+    newAlloc.push({ company: c, percent: v });
+  });
+
+  if (!newAlloc.length) { alert('1社以上選択して%を入力してください'); return; }
+  if (Math.abs(sum - 100) > 0.1) { alert(`合計が ${sum.toFixed(1)}% です。100%に調整してください。`); return; }
+
+  // %→¥変換(端数は最後の社に寄せる)
+  let acc = 0;
+  newAlloc.forEach((a, i) => {
+    if (i === newAlloc.length - 1) a.amount = total - acc;
+    else { a.amount = Math.floor(total * a.percent / 100); acc += a.amount; }
+  });
+
+  item.paymentSource = newPaySrc;
+  item.allocations = newAlloc;
+  localStorage.setItem('mgr_v6_data', JSON.stringify(masterData));
+  closeAllocModal();
+  renderBoard();
+}
+
+function closeAllocModal() {
+  editingItemId = null;
+  document.getElementById('allocModal').style.display = 'none';
+}
+// 背景クリックで閉じる
+document.addEventListener('click', e => {
+  if (e.target.id === 'allocModal') closeAllocModal();
+});
 </script>
 </body>
 </html>

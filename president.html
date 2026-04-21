@@ -83,6 +83,42 @@ body{font-family:-apple-system,sans-serif;background:#f7f5fb;color:var(--gray-80
               padding:12px;border-bottom:1px solid var(--gray-100)}
 .cat-badge{font-size:10px;padding:2px 6px;border-radius:10px;background:var(--gray-100)}
 
+/* 支払元・按分セクション */
+.pay-section{background:#fef3c7;padding:12px;border-radius:8px;margin-bottom:10px;border:1.5px solid #fcd34d}
+.pay-section.alloc{background:#ede9fe;border-color:#c4b5fd}
+.pay-row{display:flex;gap:6px;flex-wrap:wrap}
+.pay-chip{flex:1;min-width:90px;padding:10px;border:1.5px solid var(--gray-300);border-radius:8px;
+          background:white;text-align:center;font-size:13px;font-weight:700;cursor:pointer;user-select:none}
+.pay-chip.active{border-color:var(--primary);background:var(--primary);color:white}
+
+.alloc-mode{display:flex;gap:6px;margin:8px 0}
+.alloc-mode-btn{flex:1;padding:8px;border:1.5px solid var(--gray-300);border-radius:6px;
+                background:white;font-size:12px;font-weight:700;cursor:pointer}
+.alloc-mode-btn.active{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+
+.alloc-company{display:grid;grid-template-columns:auto 1fr 90px 80px;gap:8px;
+               align-items:center;padding:8px 6px;border-bottom:1px solid var(--gray-100)}
+.alloc-company:last-child{border-bottom:none}
+.alloc-company input[type=checkbox]{width:20px;height:20px;margin:0;accent-color:var(--primary)}
+.alloc-company .cname{font-size:13px;font-weight:600}
+.alloc-company .cinput{width:100%;padding:6px;border:1px solid var(--gray-300);border-radius:4px;
+                        font-size:14px;text-align:right;margin:0}
+.alloc-company .cinput:disabled{background:#f3f4f6;color:#9ca3af}
+.alloc-company .cside{font-size:11px;color:var(--gray-500);text-align:right}
+
+.alloc-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.alloc-btn-small{padding:8px 12px;border:1.5px solid var(--gray-300);border-radius:6px;
+                 background:white;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+.alloc-btn-small:active{background:var(--gray-100)}
+.alloc-recent{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.alloc-recent-chip{padding:6px 10px;border:1px solid var(--primary);border-radius:12px;
+                   background:white;color:var(--primary);font-size:11px;font-weight:600;cursor:pointer}
+.alloc-recent-chip:active{background:var(--primary-light)}
+
+.alloc-total{margin-top:8px;padding:8px;border-radius:6px;font-size:13px;font-weight:700;text-align:center}
+.alloc-total.ok{background:#dcfce7;color:#166534}
+.alloc-total.ng{background:#fee2e2;color:#991b1b}
+
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;
             height:calc(var(--bottom-nav-h) + var(--safe-bottom));
             background:white;border-top:1px solid var(--gray-200);display:flex;z-index:200}
@@ -170,6 +206,38 @@ body{font-family:-apple-system,sans-serif;background:#f7f5fb;color:var(--gray-80
           <label class="form-label req">店名・購入場所</label>
           <input type="text" class="form-control" id="fStore" placeholder="例：コーナン">
 
+          <!-- 支払元 -->
+          <div class="pay-section">
+            <label class="form-label req" style="color:#92400e">💳 支払元</label>
+            <div class="pay-row" id="paySourceRow">
+              <div class="pay-chip" data-source="現金" onclick="setPaySource('現金')">💴 現金</div>
+              <div class="pay-chip" data-source="GRアメックス" onclick="setPaySource('GRアメックス')">💳 GR</div>
+              <div class="pay-chip" data-source="GRHDアメックス" onclick="setPaySource('GRHDアメックス')">💳 GRHD</div>
+            </div>
+          </div>
+
+          <!-- 按分 -->
+          <div class="pay-section alloc">
+            <label class="form-label req" style="color:#5b21b6">🏢 費用負担（按分）</label>
+
+            <div class="alloc-mode">
+              <button type="button" class="alloc-mode-btn active" id="modeBtn-pct" onclick="setAllocMode('pct')">％指定</button>
+              <button type="button" class="alloc-mode-btn" id="modeBtn-amt" onclick="setAllocMode('amt')">金額指定</button>
+            </div>
+
+            <div id="allocList"></div>
+
+            <div class="alloc-recent" id="allocRecent" style="display:none"></div>
+
+            <div class="alloc-actions">
+              <button type="button" class="alloc-btn-small" onclick="allocEqualSplit()">⚖ 均等割</button>
+              <button type="button" class="alloc-btn-small" onclick="allocReset100GR()">↺ 100% GR</button>
+              <button type="button" class="alloc-btn-small" onclick="allocClear()">🗑 クリア</button>
+            </div>
+
+            <div class="alloc-total" id="allocTotal">合計: —</div>
+          </div>
+
           <label class="form-label">メモ</label>
           <input type="text" class="form-control" id="fMemo" placeholder="任意">
 
@@ -211,9 +279,18 @@ body{font-family:-apple-system,sans-serif;background:#f7f5fb;color:var(--gray-80
 
 <script>
 // ================================================================
-// 社長専用：固定氏名
+// 社長専用：固定氏名 + 会社/支払元定義
 // ================================================================
 const FIXED_NAME = '小林社長';
+
+// 按分対象会社(6社。順序は表示順)
+const COMPANIES = ['グローライズ', 'GRHD', '和信カインド', 'ビジネスサポート', 'ラーテル', 'GRミツマ'];
+
+// 支払元の選択肢
+const PAY_SOURCES = ['現金', 'GRアメックス', 'GRHDアメックス'];
+
+// 最近の按分パターンを保持するキー(直近3件)
+const RECENT_ALLOC_KEY = 'pres_recent_alloc_v1';
 
 // カテゴリマスタ(借方科目・補助との対応)
 const CAT_MAP = {
@@ -240,10 +317,193 @@ const STORAGE_KEY = 'exp_president_v1';   // 社員用と完全分離
 let expenses = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } })();
 let currentImg = null;
 
+// フォーム内ステート
+let paySource = '';        // '現金' / 'GRアメックス' / 'GRHDアメックス'
+let allocMode = 'pct';     // 'pct' or 'amt'
+let allocData = {};        // { 'グローライズ': { checked:true, value:100 }, ... }
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('fDate').value = today();
   renderList();
+  renderAllocList();
+  renderRecentAllocs();
+  // 金額変更で %⇔¥ サイド表示更新
+  document.getElementById('fAmount').addEventListener('input', updateAllocTotal);
 });
+
+// ================================================================
+// 支払元
+// ================================================================
+function setPaySource(src) {
+  paySource = src;
+  document.querySelectorAll('.pay-chip').forEach(el => {
+    el.classList.toggle('active', el.dataset.source === src);
+  });
+}
+
+// ================================================================
+// 按分UI
+// ================================================================
+function setAllocMode(mode) {
+  allocMode = mode;
+  document.getElementById('modeBtn-pct').classList.toggle('active', mode === 'pct');
+  document.getElementById('modeBtn-amt').classList.toggle('active', mode === 'amt');
+  renderAllocList();
+}
+
+function renderAllocList() {
+  const total = Number(document.getElementById('fAmount')?.value || 0);
+  const html = COMPANIES.map(c => {
+    const d = allocData[c] || { checked: false, value: 0 };
+    const checkedAttr = d.checked ? 'checked' : '';
+    const disabledAttr = d.checked ? '' : 'disabled';
+    const unit = allocMode === 'pct' ? '%' : '円';
+    const val = d.checked ? (d.value || '') : '';
+    // 反対単位での表示
+    let sideText = '-';
+    if (d.checked && total > 0) {
+      if (allocMode === 'pct' && d.value) {
+        sideText = '¥' + Math.round(total * Number(d.value) / 100).toLocaleString();
+      } else if (allocMode === 'amt' && d.value) {
+        sideText = (Number(d.value) / total * 100).toFixed(1) + '%';
+      }
+    }
+    return `
+      <div class="alloc-company">
+        <input type="checkbox" id="alc-${c}" ${checkedAttr} onchange="toggleAlloc('${c}', this.checked)">
+        <label for="alc-${c}" class="cname">${esc(c)}</label>
+        <input type="number" class="cinput" id="ali-${c}" value="${val}" ${disabledAttr}
+               placeholder="0" min="0" step="${allocMode === 'pct' ? 1 : 100}"
+               oninput="setAllocValue('${c}', this.value)">
+        <div class="cside">${sideText === '-' ? unit : sideText}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('allocList').innerHTML = html;
+  updateAllocTotal();
+}
+
+function toggleAlloc(company, checked) {
+  allocData[company] = allocData[company] || { checked: false, value: 0 };
+  allocData[company].checked = checked;
+  if (!checked) allocData[company].value = 0;
+  renderAllocList();
+}
+
+function setAllocValue(company, value) {
+  allocData[company] = allocData[company] || { checked: true, value: 0 };
+  allocData[company].value = Number(value) || 0;
+  updateAllocTotal();
+  // sideText更新(全体再描画はフォーカス外れるので避ける→部分更新)
+  const total = Number(document.getElementById('fAmount').value || 0);
+  const sideEl = document.querySelector(`#alc-${CSS.escape(company)}`).closest('.alloc-company').querySelector('.cside');
+  if (total > 0 && Number(value) > 0) {
+    if (allocMode === 'pct') sideEl.textContent = '¥' + Math.round(total * Number(value) / 100).toLocaleString();
+    else                     sideEl.textContent = (Number(value) / total * 100).toFixed(1) + '%';
+  } else {
+    sideEl.textContent = allocMode === 'pct' ? '%' : '円';
+  }
+}
+
+function updateAllocTotal() {
+  const total = Number(document.getElementById('fAmount')?.value || 0);
+  const el = document.getElementById('allocTotal');
+  if (!el) return;
+  const entries = Object.entries(allocData).filter(([_, d]) => d.checked);
+  const sum = entries.reduce((s, [_, d]) => s + (Number(d.value) || 0), 0);
+  if (entries.length === 0) {
+    el.className = 'alloc-total ng';
+    el.textContent = '合計: — (1社以上選択してください)';
+    return;
+  }
+  if (allocMode === 'pct') {
+    const ok = Math.abs(sum - 100) < 0.01;
+    el.className = 'alloc-total ' + (ok ? 'ok' : 'ng');
+    el.innerHTML = ok
+      ? `合計: <b>${sum.toFixed(1)}%</b> ✅`
+      : `合計: <b>${sum.toFixed(1)}%</b> (残り ${(100 - sum).toFixed(1)}%)`;
+  } else {
+    const ok = total > 0 && sum === total;
+    el.className = 'alloc-total ' + (ok ? 'ok' : 'ng');
+    el.innerHTML = ok
+      ? `合計: <b>¥${sum.toLocaleString()}</b> ✅`
+      : `合計: <b>¥${sum.toLocaleString()}</b> / ¥${total.toLocaleString()} (差額 ¥${(total - sum).toLocaleString()})`;
+  }
+}
+
+function allocEqualSplit() {
+  const entries = Object.entries(allocData).filter(([_, d]) => d.checked);
+  if (!entries.length) return alert('まず会社を1社以上チェックしてください');
+  const total = Number(document.getElementById('fAmount').value || 0);
+  const n = entries.length;
+  if (allocMode === 'pct') {
+    const base = Math.floor(100 / n);
+    const remainder = 100 - base * n;
+    entries.forEach(([c, _], i) => {
+      allocData[c].value = base + (i === 0 ? remainder : 0);  // 余りは最初の社
+    });
+  } else {
+    if (total <= 0) return alert('先に金額を入力してください');
+    const base = Math.floor(total / n);
+    const remainder = total - base * n;
+    entries.forEach(([c, _], i) => {
+      allocData[c].value = base + (i === 0 ? remainder : 0);
+    });
+  }
+  renderAllocList();
+}
+
+function allocReset100GR() {
+  // グローライズだけチェック、100%(または総額)
+  allocData = {};
+  const total = Number(document.getElementById('fAmount').value || 0);
+  allocData['グローライズ'] = { checked: true, value: allocMode === 'pct' ? 100 : total };
+  renderAllocList();
+}
+
+function allocClear() {
+  allocData = {};
+  renderAllocList();
+}
+
+// ================================================================
+// 最近の按分パターン
+// ================================================================
+function getRecentAllocs() {
+  try { return JSON.parse(localStorage.getItem(RECENT_ALLOC_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveRecentAlloc(pattern) {
+  const list = getRecentAllocs();
+  // 同じパターンがあれば除外
+  const key = JSON.stringify(pattern);
+  const filtered = list.filter(p => JSON.stringify(p) !== key);
+  filtered.unshift(pattern);
+  localStorage.setItem(RECENT_ALLOC_KEY, JSON.stringify(filtered.slice(0, 3)));
+}
+
+function renderRecentAllocs() {
+  const list = getRecentAllocs();
+  const el = document.getElementById('allocRecent');
+  if (!list.length) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.innerHTML = '<span style="font-size:11px;color:#6b7280;align-self:center">最近:</span>' +
+    list.map((p, i) => {
+      const label = p.map(x => `${x.company}${x.percent}%`).join('/');
+      return `<div class="alloc-recent-chip" onclick="applyRecentAlloc(${i})">${esc(label)}</div>`;
+    }).join('');
+}
+
+function applyRecentAlloc(idx) {
+  const list = getRecentAllocs();
+  const p = list[idx];
+  if (!p) return;
+  // 全部% のみ保存しているので pctモードに戻す
+  setAllocMode('pct');
+  allocData = {};
+  p.forEach(x => { allocData[x.company] = { checked: true, value: x.percent }; });
+  renderAllocList();
+}
 
 function switchTab(tab, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.style.display='none');
@@ -382,6 +642,11 @@ async function saveExpense() {
   if (!date)    return alert('日付を入力してください');
   if (!amount || amount <= 0) return alert('金額は1円以上入力してください');
   if (!store)   return alert('店名を入力してください');
+  if (!paySource) return alert('💳 支払元を選択してください');
+
+  // 按分バリデーション
+  const allocations = buildAllocations(amount);
+  if (!allocations) return;  // エラー内で alert 済
 
   // 重複チェック(日付・金額・店名が全て同じ)
   const isDup = expenses.some(e =>
@@ -408,6 +673,9 @@ async function saveExpense() {
     memo:      document.getElementById('fMemo').value.trim(),
     name:      FIXED_NAME,      // ★固定: 小林社長
     img:       thumb,
+    // ★社長専用フィールド
+    paymentSource: paySource,
+    allocations: allocations,   // [{ company, percent, amount }]
   });
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
@@ -416,8 +684,49 @@ async function saveExpense() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
     alert('画像の保存容量が上限に達したため、今回は画像なしで保存しました。');
   }
+  // 按分パターンを「最近」に記録(% のみ保存)
+  saveRecentAlloc(allocations.map(a => ({ company: a.company, percent: a.percent })));
   resetForm();
   switchTab('list', document.getElementById('nav-li'));
+}
+
+// 按分データを構築 & バリデーション
+// 成功: [{ company, percent, amount }] を返す
+// 失敗: alert してから null 返す
+function buildAllocations(total) {
+  const entries = Object.entries(allocData).filter(([_, d]) => d.checked && Number(d.value) > 0);
+  if (!entries.length) { alert('🏢 費用負担する会社を1社以上選択してください'); return null; }
+
+  const values = entries.map(([c, d]) => ({ company: c, value: Number(d.value) }));
+  const sum = values.reduce((s, v) => s + v.value, 0);
+
+  if (allocMode === 'pct') {
+    // 合計100%チェック(許容誤差 0.1%)
+    if (Math.abs(sum - 100) > 0.1) {
+      alert(`按分合計が ${sum.toFixed(1)}% です。100% になるよう調整してください。`);
+      return null;
+    }
+    // %→¥変換。端数は最初の会社に寄せる
+    let acc = 0;
+    const result = values.map((v, i) => {
+      let amount;
+      if (i === values.length - 1) amount = total - acc;  // 最後は残り全部
+      else { amount = Math.floor(total * v.value / 100); acc += amount; }
+      return { company: v.company, percent: Number(v.value), amount };
+    });
+    return result;
+  } else {
+    // 金額モード: 合計=総額 必須
+    if (sum !== total) {
+      alert(`按分合計 ¥${sum.toLocaleString()} と総額 ¥${total.toLocaleString()} が一致しません。`);
+      return null;
+    }
+    return values.map(v => ({
+      company: v.company,
+      percent: Number((v.value / total * 100).toFixed(2)),
+      amount:  v.value,
+    }));
+  }
 }
 
 function resetForm() {
@@ -430,6 +739,15 @@ function resetForm() {
   hideBanner();
   document.querySelectorAll('.auto-filled').forEach(el => el.classList.remove('auto-filled'));
   document.querySelectorAll('input[type=file]').forEach(i => i.value='');
+  // 支払元・按分をリセット
+  paySource = '';
+  document.querySelectorAll('.pay-chip').forEach(el => el.classList.remove('active'));
+  allocMode = 'pct';
+  document.getElementById('modeBtn-pct').classList.add('active');
+  document.getElementById('modeBtn-amt').classList.remove('active');
+  allocData = {};
+  renderAllocList();
+  renderRecentAllocs();
 }
 
 function renderList() {
@@ -438,13 +756,22 @@ function renderList() {
     cont.innerHTML = '<div style="text-align:center;padding:40px;color:#999">データなし</div>';
     return;
   }
-  cont.innerHTML = expenses.map(e => `
+  cont.innerHTML = expenses.map(e => {
+    const paySrcLabel = e.paymentSource
+      ? (e.paymentSource === '現金' ? '💴 現金' : '💳 ' + e.paymentSource.replace('アメックス', ''))
+      : '';
+    const allocLabel = e.allocations?.length
+      ? e.allocations.map(a => `${a.company}${a.percent}%`).join(' / ')
+      : '';
+    return `
     <div class="expense-card">
-      <div>
+      <div style="flex:1;min-width:0">
         <div style="font-weight:bold;font-size:14px">${esc(e.store)}</div>
         <div style="font-size:11px;color:#666">
           ${e.date} · <span class="cat-badge">${esc(e.category)}</span>
         </div>
+        ${paySrcLabel ? `<div style="font-size:11px;color:#92400e;margin-top:2px">${paySrcLabel}</div>` : ''}
+        ${allocLabel ? `<div style="font-size:11px;color:#5b21b6;margin-top:2px">🏢 ${esc(allocLabel)}</div>` : ''}
         ${e.memo ? `<div style="font-size:11px;color:#888;margin-top:2px">${esc(e.memo)}</div>` : ''}
       </div>
       <div style="text-align:right">
@@ -455,7 +782,8 @@ function renderList() {
           削除
         </button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function del(id) {
