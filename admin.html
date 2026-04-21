@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <title>経費精算 管理者コンソール</title>
+<!-- Shift-JIS(CP932)エンコード用ライブラリ(JDL CSV取込互換) -->
+<script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.2.0/encoding.min.js"></script>
 <style>
 :root{--primary:#2563eb;--success:#16a34a;--danger:#dc2626;--bg:#f3f4f6;--card:#fff;--border:#e5e7eb;--text:#1f2937}
 body{font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px;margin:0}
@@ -66,19 +68,22 @@ body{font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px;
 // ================================================================
 // カテゴリマスタ（借方科目・補助の対応）
 // ================================================================
+// 大項目=借方科目名称(JDL短名称)  中項目=借方補助名称  (20260420更新版スペックに準拠)
 const CAT_MAP = {
-  '駐車場代':     { account:'旅費交通費', accountFormal:'旅費交通費', sub:'駐車場代',     taxArea:'仕入' },
-  '仕入高':       { account:'仕入高',     accountFormal:'仕入高',     sub:'',             taxArea:'仕入' },
-  'ガソリン':     { account:'車両費',     accountFormal:'車両費',     sub:'ガソリン',     taxArea:'仕入' },
-  '消耗品費':     { account:'消耗品費',   accountFormal:'消耗品費',   sub:'',             taxArea:'仕入' },
-  '事務用品':     { account:'事務用品費', accountFormal:'事務用品費', sub:'',             taxArea:'仕入' },
-  '運賃':         { account:'運賃',       accountFormal:'運賃',       sub:'',             taxArea:'仕入' },
-  'その他交通費': { account:'旅費交通費', accountFormal:'旅費交通費', sub:'その他交通費', taxArea:'仕入' },
-  '会議費':       { account:'会議費',     accountFormal:'会議費',     sub:'',             taxArea:'仕入' },
-  '交際費':       { account:'交際費',     accountFormal:'交際費',     sub:'',             taxArea:'仕入' },
-  '水道光熱':     { account:'水道光熱費', accountFormal:'水道光熱費', sub:'',             taxArea:'仕入' },
-  '租税公課':     { account:'租税公課',   accountFormal:'租税公課',   sub:'',             taxArea:'対象外' },
-  '福利厚生':     { account:'福利厚生費', accountFormal:'福利厚生費', sub:'',             taxArea:'仕入' },
+  '駐車場代':     { account:'旅費交通', sub:'駐車場代',     taxArea:'仕入'   },
+  '仕入高':       { account:'仕入高',   sub:'',             taxArea:'仕入'   },
+  'ガソリン':     { account:'車両費',   sub:'ガソリン',     taxArea:'仕入'   },
+  '車両関係費':   { account:'車両費',   sub:'車両関係費',   taxArea:'仕入'   },
+  '消耗品費':     { account:'消耗品費', sub:'',             taxArea:'仕入'   },
+  '事務用品':     { account:'事務用品', sub:'',             taxArea:'仕入'   },
+  '運賃':         { account:'運賃',     sub:'',             taxArea:'仕入'   },
+  'その他交通費': { account:'旅費交通', sub:'その他交通費', taxArea:'仕入'   },
+  '有料道路':     { account:'旅費交通', sub:'有料道路',     taxArea:'仕入'   },
+  '会議費':       { account:'会議費',   sub:'',             taxArea:'仕入'   },
+  '交際費':       { account:'交際費',   sub:'',             taxArea:'仕入'   },
+  '水道光熱':     { account:'水道光熱', sub:'',             taxArea:'仕入'   },
+  '租税公課':     { account:'租税公課', sub:'',             taxArea:'対象外' },
+  '福利厚生':     { account:'福利厚生', sub:'',             taxArea:'仕入'   },
 };
 
 // ================================================================
@@ -223,64 +228,102 @@ function clearAll() {
 function exportJDL() {
   if (!masterData.length) return alert('データがありません');
 
-  const HEADER = '// 識別フラグ,伝番,日付,借方科目,借方科目名称,借方科目正式名称,借方補助,借方補助名称,借方課区,借方税区,借方税入力方法,借方金額,借方消費税,貸方科目,貸方科目名称,貸方科目正式名称,貸方補助,貸方補助名称,貸方課区,貸方税区,貸方税入力方法,貸方金額,貸方消費税,摘要,借方取引科目,貸方取引科目,借方部門コード,借方部門名称,貸方部門コード,貸方部門名称';
-  const rows = [HEADER];
+  // 会計年度を自動判定(4/1～翌3/31)
+  const dates = masterData.map(e => e.date).filter(Boolean).sort();
+  const firstDate = new Date(dates[0] || new Date());
+  const fyStartYear = firstDate.getMonth() >= 3 ? firstDate.getFullYear() : firstDate.getFullYear() - 1;
+  const fyStart = `${fyStartYear}0401`;
+  const fyEnd   = `${fyStartYear + 1}0331`;
+  const reiwaY  = (fyStartYear + 1) - 2018;   // 決算年(令和N年) = FY末の西暦 - 2018
 
-  masterData.forEach((e, idx) => {
-    const cat     = CAT_MAP[e.category] || { account:e.category||'諸経費', accountFormal:e.category||'諸経費', sub:'', taxArea:'仕入' };
-    const taxRate = Number(e.tax ?? 10);
-    const taxDenom= taxRate === 0 ? 1 : 100 + taxRate;
-    const taxAmt  = taxRate === 0 ? 0 : Math.floor(e.amount * taxRate / taxDenom);
-    const taxLabel= taxRate === 8 ? '軽減8%' : taxRate === 0 ? '対象外' : '10%';
-    const taxArea = taxRate === 0 ? '対象外' : cat.taxArea;
-    const denban  = String(idx + 1).padStart(3, '0');
-    const dateJdl = (e.date || '').replace(/-/g, '');
+  // 30列の空行(カンマ29個)に揃えるユーティリティ
+  const pad30 = str => {
+    const commasNeeded = 29 - (str.match(/,/g) || []).length;
+    return str + (commasNeeded > 0 ? ','.repeat(commasNeeded) : '');
+  };
 
+  // ===== 先頭3行(コメント+空行) + 4行目に列タイトル =====
+  const rows = [
+    pad30(`// 0002 株式会社グローライズ 令和 ${reiwaY}年 3月31日決算`),
+    pad30(`// 出力期間 ： ${fyStart} ～ ${fyEnd} `),
+    ','.repeat(29),
+    '//識別フラグ,伝番,日付,借方科目,借方科目名称,借方科目正式名称,借方補助,借方補助名称,借方課区,借方税区,借方税入力方法,借方金額,借方消費税,貸方科目,貸方科目名称,貸方科目正式名称,貸方補助,貸方補助名称,貸方課区,貸方税区,貸方税入力方法,貸方金額,貸方消費税,摘要,借方取引科目,貸方取引科目,借方部門コード,借方部門名称,貸方部門コード,貸方部門名称',
+  ];
+
+  // CSVフィールドをエスケープ(カンマ・改行・"を含むときだけ引用符で囲む)
+  const f = v => {
+    const s = String(v == null ? '' : v);
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  masterData.forEach(e => {
+    const cat      = CAT_MAP[e.category] || { account:e.category||'諸経費', sub:'', taxArea:'仕入' };
+    const taxRate  = Number(e.tax ?? 10);
+    const taxDenom = taxRate === 0 ? 1 : 100 + taxRate;
+    const taxAmt   = taxRate === 0 ? 0 : Math.floor(e.amount * taxRate / taxDenom);
+    // 税率0(対象外)は 課区/税区/税入力方法 をすべて空欄(サンプルCSV仕様)
+    const taxLabel  = taxRate === 0 ? '' : (taxRate === 8 ? '軽減8%' : '10%');
+    const taxArea   = taxRate === 0 ? '' : (cat.taxArea || '仕入');
+    const taxMethod = taxRate === 0 ? '' : '内税';
+    const dateJdl   = (e.date || '').replace(/-/g, '');
+
+    // 摘要: 店名 [元請け/現場] メモ (申請者)
     let tekiyou = e.store || '';
-    if (e.motouke || e.genba) tekiyou += ` [${e.motouke||''} / ${e.genba||''}]`;
+    if (e.motouke || e.genba) tekiyou += ` [${e.motouke||''}/${e.genba||''}]`;
     if (e.memo) tekiyou += ` ${e.memo}`;
+    if (e.name) tekiyou += ` (${e.name})`;
 
     rows.push([
-      '1000',                             // 識別フラグ
-      denban,                             // 伝番
-      dateJdl,                            // 日付 YYYYMMDD
-      '',                                 // 借方科目コード（空：JDL側で名称からマッピング）
-      cat.account,                        // 借方科目名称
-      cat.accountFormal,                  // 借方科目正式名称
-      '',                                 // 借方補助コード
-      cat.sub,                            // 借方補助名称
-      taxArea,                            // 借方課区
-      taxLabel,                           // 借方税区
-      '内税',                             // 借方税入力方法
-      e.amount,                           // 借方金額（税込）
-      taxAmt,                             // 借方消費税
-      '',                                 // 貸方科目コード
-      '現金',                             // 貸方科目名称
-      '現金',                             // 貸方科目正式名称
-      '',                                 // 貸方補助コード
-      '',                                 // 貸方補助名称
-      '',                                 // 貸方課区
-      '',                                 // 貸方税区
-      '',                                 // 貸方税入力方法
-      e.amount,                           // 貸方金額
-      '',                                 // 貸方消費税
-      `"${tekiyou.replace(/"/g,'""')}"`,  // 摘要（店名＋現場）
-      '',                                 // 借方取引科目
-      '',                                 // 貸方取引科目
-      '',                                 // 借方部門コード
-      `"${csv2(e.name||'')}"`,            // 借方部門名称（申請者名）
-      '',                                 // 貸方部門コード
-      `"${csv2(e.name||'')}"`,            // 貸方部門名称（申請者名）
+      '1000',         // 1 識別フラグ
+      '',             // 2 伝番(空:JDLが自動採番)
+      dateJdl,        // 3 日付 YYYYMMDD
+      '',             // 4 借方科目コード
+      f(cat.account), // 5 借方科目名称(大項目=短名称)
+      '',             // 6 借方科目正式名称(空:JDLが自動補完)
+      '',             // 7 借方補助コード
+      f(cat.sub),     // 8 借方補助名称(中項目)
+      taxArea,        // 9 借方課区
+      taxLabel,       // 10 借方税区
+      taxMethod,      // 11 借方税入力方法
+      e.amount,       // 12 借方金額(税込)
+      taxAmt,         // 13 借方消費税
+      '',             // 14 貸方科目コード
+      '現金',         // 15 貸方科目名称
+      '',             // 16 貸方科目正式名称(空)
+      '',             // 17 貸方補助コード
+      '',             // 18 貸方補助名称
+      '',             // 19 貸方課区
+      '',             // 20 貸方税区
+      '',             // 21 貸方税入力方法
+      e.amount,       // 22 貸方金額
+      '',             // 23 貸方消費税
+      f(tekiyou),     // 24 摘要
+      '',             // 25 借方取引科目
+      '',             // 26 貸方取引科目
+      '',             // 27 借方部門コード
+      '',             // 28 借方部門名称(空:JDL未登録部門はエラーになるため)
+      '',             // 29 貸方部門コード
+      '',             // 30 貸方部門名称
     ].join(','));
   });
 
-  const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type:'text/csv;charset=utf-8' });
-  const a    = document.createElement('a');
-  const url  = URL.createObjectURL(blob);
-  a.href     = url;
-  const d    = new Date();
+  // ===== Shift-JIS(CP932)にエンコード =====
+  const csvText = rows.join('\r\n') + '\r\n';
+  let blob;
+  if (typeof Encoding !== 'undefined') {
+    const sjis = Encoding.convert(csvText, { to:'SJIS', from:'UNICODE', type:'array' });
+    blob = new Blob([new Uint8Array(sjis)], { type:'text/csv' });
+  } else {
+    alert('警告: Shift-JIS変換ライブラリが読み込めませんでした。UTF-8 BOMで出力します。');
+    blob = new Blob(['\uFEFF' + csvText], { type:'text/csv;charset=utf-8' });
+  }
+
+  const a       = document.createElement('a');
+  const url     = URL.createObjectURL(blob);
+  a.href        = url;
+  const d       = new Date();
   const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  a.download = `JDL取込_${dateStr}.csv`;
+  a.download    = `JDL取込_${dateStr}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }

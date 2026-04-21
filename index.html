@@ -166,10 +166,12 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
                 <option value="駐車場代">🅿️ 駐車場代 (パーキング)</option>
                 <option value="仕入高">🔧 仕入高 (材料・部品・工具)</option>
                 <option value="ガソリン">⛽ 車両費 (ガソリン代)</option>
+                <option value="車両関係費">🔧 車両関係費 (修理・車用品)</option>
                 <option value="消耗品費">📦 消耗品費 (材料以外)</option>
                 <option value="事務用品">✏️ 事務用品</option>
                 <option value="運賃">🚚 運賃 (宅急便など)</option>
                 <option value="その他交通費">🚕 その他交通費 (タクシー等)</option>
+                <option value="有料道路">🛣️ 有料道路 (高速道路代)</option>
                 <option value="会議費">🍵 会議費 (社内飲食)</option>
                 <option value="交際費">🍺 交際費 (社外飲食)</option>
                 <option value="水道光熱">💡 水道光熱</option>
@@ -238,19 +240,22 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
 // ================================================================
 // カテゴリマスタ（借方科目・補助との対応）
 // ================================================================
+// 大項目=借方科目名称(JDL短名称)  中項目=借方補助名称  (20260420更新版スペックに準拠)
 const CAT_MAP = {
-  '駐車場代':     { account:'旅費交通費', accountFormal:'旅費交通費', sub:'駐車場代',     tax:'10' },
-  '仕入高':       { account:'仕入高',     accountFormal:'仕入高',     sub:'',             tax:'10' },
-  'ガソリン':     { account:'車両費',     accountFormal:'車両費',     sub:'ガソリン',     tax:'10' },
-  '消耗品費':     { account:'消耗品費',   accountFormal:'消耗品費',   sub:'',             tax:'10' },
-  '事務用品':     { account:'事務用品費', accountFormal:'事務用品費', sub:'',             tax:'10' },
-  '運賃':         { account:'運賃',       accountFormal:'運賃',       sub:'',             tax:'10' },
-  'その他交通費': { account:'旅費交通費', accountFormal:'旅費交通費', sub:'その他交通費', tax:'10' },
-  '会議費':       { account:'会議費',     accountFormal:'会議費',     sub:'',             tax:'10' },
-  '交際費':       { account:'交際費',     accountFormal:'交際費',     sub:'',             tax:'10' },
-  '水道光熱':     { account:'水道光熱費', accountFormal:'水道光熱費', sub:'',             tax:'10' },
-  '租税公課':     { account:'租税公課',   accountFormal:'租税公課',   sub:'',             tax:'0'  },
-  '福利厚生':     { account:'福利厚生費', accountFormal:'福利厚生費', sub:'',             tax:'10' },
+  '駐車場代':     { account:'旅費交通', sub:'駐車場代',     tax:'10' },
+  '仕入高':       { account:'仕入高',   sub:'',             tax:'10' },
+  'ガソリン':     { account:'車両費',   sub:'ガソリン',     tax:'10' },
+  '車両関係費':   { account:'車両費',   sub:'車両関係費',   tax:'10' },
+  '消耗品費':     { account:'消耗品費', sub:'',             tax:'10' },
+  '事務用品':     { account:'事務用品', sub:'',             tax:'10' },
+  '運賃':         { account:'運賃',     sub:'',             tax:'10' },
+  'その他交通費': { account:'旅費交通', sub:'その他交通費', tax:'10' },
+  '有料道路':     { account:'旅費交通', sub:'有料道路',     tax:'10' },
+  '会議費':       { account:'会議費',   sub:'',             tax:'10' },
+  '交際費':       { account:'交際費',   sub:'',             tax:'10' },
+  '水道光熱':     { account:'水道光熱', sub:'',             tax:'10' },
+  '租税公課':     { account:'租税公課', sub:'',             tax:'0'  },
+  '福利厚生':     { account:'福利厚生', sub:'',             tax:'10' },
 };
 
 // ================================================================
@@ -319,7 +324,11 @@ async function runGeminiOCR(imgSrc) {
         { text: `このレシート・領収書から情報を抽出し、必ずJSON形式のみで回答してください。
 
 抽出項目：
-- date: 日付（YYYY-MM-DD形式。和暦は西暦に変換）
+- date: 日付（YYYY-MM-DD形式）
+  ※「令和」「平成」と明記されている場合のみ和暦→西暦に変換してください。
+  ※「26年4月17日」のように元号の記載がない2桁年は、西暦2000年代として扱ってください(例: "26年" → "2026", "25年" → "2025")。
+  ※「2026/4/17」「2026-04-17」など西暦4桁はそのまま使ってください。
+  例: "令和6年4月17日" → "2024-04-17" / "26年4月17日" → "2026-04-17"
 - amount: 税込合計金額（整数。記号・カンマ不要）
 - store: 店名・会社名（先頭に多い固有名詞）
 - tax_rate: 税率（"10" または "8" または "0"。軽減税率マークがあれば "8"）
@@ -421,7 +430,7 @@ async function saveExpense() {
   if (isDup && !confirm(`同じレシートが既に保存されています。\n（${date} / ¥${amount.toLocaleString()} / ${store}）\n\n続けて保存しますか？`)) return;
 
   const taxRate = document.getElementById('fTax').value;
-  const catInfo = CAT_MAP[cat] || { account:cat, accountFormal:cat, sub:'', tax:taxRate };
+  const catInfo = CAT_MAP[cat] || { account:cat, sub:'', tax:taxRate };
 
   const thumb = await makeThumbnail(currentImg);
   expenses.unshift({
@@ -431,7 +440,6 @@ async function saveExpense() {
     store,
     category:  cat,
     account:   catInfo.account,
-    accountFormal: catInfo.accountFormal,
     sub:       catInfo.sub,
     tax:       taxRate,
     motouke:   motouke,
