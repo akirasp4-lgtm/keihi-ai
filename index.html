@@ -410,7 +410,8 @@ function closePicker() {
 }
 
 function filterPickerList() {
-  const q = document.getElementById('pickerSearch').value.trim().toLowerCase();
+  const rawQ = document.getElementById('pickerSearch').value.trim();
+  const q = normalizeJa(rawQ);
   const list = document.getElementById('pickerList');
 
   // 現場ピッカー時、元請けが既に入力されていればそれで絞り込み(文字一致優先)
@@ -418,30 +419,32 @@ function filterPickerList() {
     ? document.getElementById('fMotouke').value.trim()
     : '';
 
+  // 検索対象文字列(読みがあれば含めて全部マッチ候補にする)
+  const hay = (it) => normalizeJa([it.main, it.sub, it.jobNo, it.yomi].filter(Boolean).join(' '));
+
   let items = [];
   if (pickerMode === 'motouke') {
     const names = [...new Set(motoukeMaster.map(m => m.name).filter(Boolean))].sort();
-    items = names
-      .filter(n => !q || n.toLowerCase().includes(q))
-      .map(n => ({ main:n, sub:'', jobNo:'', payload:{ motouke:n } }));
+    items = names.map(n => ({
+      main: n, sub: '', jobNo: '',
+      yomi: (motoukeMaster.find(m => m.name === n) || {}).yomi || '',
+      payload: { motouke: n },
+    }));
   } else {
     const source = motoukeFilter
       ? genbaMaster.filter(g => g.motouke === motoukeFilter)
       : genbaMaster;
-    items = source
-      .filter(g => {
-        if (!q) return true;
-        return g.genba.toLowerCase().includes(q)
-            || g.motouke.toLowerCase().includes(q)
-            || (g.jobNo || '').toLowerCase().includes(q);
-      })
-      .map(g => ({
-        main:   g.genba,
-        sub:    g.motouke,
-        jobNo:  g.jobNo || '',
-        payload:{ motouke:g.motouke, genba:g.genba, jobNo:g.jobNo || '' },
-      }));
+    items = source.map(g => ({
+      main:  g.genba,
+      sub:   g.motouke,
+      jobNo: g.jobNo || '',
+      yomi:  g.yomi  || '',  // 読み列(将来対応)
+      payload: { motouke: g.motouke, genba: g.genba, jobNo: g.jobNo || '' },
+    }));
   }
+
+  // 検索クエリでフィルタ
+  items = q ? items.filter(it => hay(it).includes(q)) : items;
   pickerItems = items;
 
   if (!items.length) {
@@ -515,6 +518,25 @@ function setupMotoukeGenbaAutoFill() {
 }
 
 function escAttr(s) { return String(s||'').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/'/g, '&#39;'); }
+
+// ================================================================
+// 日本語検索用の正規化
+//   ・カタカナ→ひらがな
+//   ・全角英数→半角
+//   ・濁点/半濁点の合成(NFKC)
+//   ・大文字→小文字
+//   ・空白除去
+// 例:「ミツイリパーク」「みついりぱーく」「MITSUI」「ＭＩＴＳＵＩ」すべて同一扱い
+// ================================================================
+function normalizeJa(s) {
+  if (!s) return '';
+  return String(s)
+    .normalize('NFKC')                    // 全角英数→半角、合成済み濁点に統一
+    .toLowerCase()
+    .replace(/[ァ-ヴ]/g, c =>              // カタカナ→ひらがな
+      String.fromCharCode(c.charCodeAt(0) - 0x60))
+    .replace(/\s+/g, '');
+}
 
 
 // ================================================================
