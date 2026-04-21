@@ -82,6 +82,35 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
 /* 現場セクション */
 .genba-section{background:#f0f7ff;padding:12px;border-radius:8px;margin-bottom:10px;border:1.5px solid #bfdbfe}
 
+/* ピッカーボタン(📋選ぶ) */
+.btn-picker{padding:12px 14px;border:1.5px solid var(--primary);background:white;color:var(--primary);
+            border-radius:6px;font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap;font-family:inherit}
+.btn-picker:active{background:var(--primary-light)}
+
+/* ピッカーモーダル */
+.picker-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;
+                 align-items:center;justify-content:center;padding:12px;padding-bottom:calc(12px + var(--safe-bottom))}
+.picker-modal-bg.show{display:flex}
+.picker-modal-box{background:white;border-radius:14px;width:100%;max-width:520px;height:85vh;max-height:720px;
+                  display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.picker-header{display:flex;justify-content:space-between;align-items:center;
+               padding:14px 16px;border-bottom:1px solid var(--gray-200);font-size:16px}
+.picker-header button{border:none;background:none;font-size:22px;cursor:pointer;color:#666;
+                      width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center}
+.picker-header button:active{background:var(--gray-100)}
+.picker-list{flex:1;overflow-y:auto;padding:4px 8px 8px;-webkit-overflow-scrolling:touch}
+.picker-item{padding:14px 12px;border-bottom:1px solid var(--gray-100);cursor:pointer;border-radius:6px}
+.picker-item:hover{background:#eff6ff}
+.picker-item:active{background:#dbeafe}
+.picker-item:last-child{border-bottom:none}
+.picker-item .p-main{font-weight:bold;font-size:15px;color:var(--gray-800)}
+.picker-item .p-sub{font-size:12px;color:var(--gray-500);margin-top:3px}
+.picker-item .p-jobno{display:inline-block;background:#f3e8ff;color:#7c3aed;font-size:10px;
+                      padding:2px 7px;border-radius:10px;margin-left:6px;font-weight:700}
+.picker-empty{padding:40px 20px;text-align:center;color:#999;font-size:13px}
+.picker-footer{padding:10px 14px;border-top:1px solid var(--gray-200);font-size:11px;
+               color:var(--gray-500);background:var(--gray-50);text-align:center}
+
 /* リスト */
 .expense-card{display:flex;align-items:center;justify-content:space-between;
               padding:12px;border-bottom:1px solid var(--gray-100)}
@@ -193,19 +222,19 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
 
             <!-- 元請け名 -->
             <label class="form-label req">元請け名</label>
-            <select class="form-control" id="fMotoukeSelect" style="margin-bottom:6px">
-              <option value="">▼ マスタから選択</option>
-            </select>
-            <input type="text" class="form-control" id="fMotouke" placeholder="（手入力する場合はこちら）" autocomplete="off">
+            <div style="display:flex;gap:6px;margin-bottom:8px">
+              <input type="text" class="form-control" id="fMotouke" placeholder="マスタから選択 or 手入力" autocomplete="off" style="flex:1;margin-bottom:0">
+              <button type="button" class="btn-picker" onclick="openPicker('motouke')">📋 選ぶ</button>
+            </div>
 
             <!-- 現場名 -->
-            <label class="form-label req" style="margin-top:8px">現場名</label>
-            <select class="form-control" id="fGenbaSelect" style="margin-bottom:6px">
-              <option value="">▼ マスタから選択</option>
-            </select>
-            <input type="text" class="form-control" id="fGenba" placeholder="（手入力する場合はこちら）" autocomplete="off">
+            <label class="form-label req">現場名</label>
+            <div style="display:flex;gap:6px">
+              <input type="text" class="form-control" id="fGenba" placeholder="マスタから選択 or 手入力" autocomplete="off" style="flex:1;margin-bottom:0">
+              <button type="button" class="btn-picker" onclick="openPicker('genba')">📋 選ぶ</button>
+            </div>
 
-            <div id="jobNoBadge" style="display:none;font-size:12px;color:#16a34a;margin-top:6px;
+            <div id="jobNoBadge" style="display:none;font-size:12px;color:#16a34a;margin-top:8px;
                         background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px 10px">
               🔖 工番: <b id="jobNoText"></b>
             </div>
@@ -249,6 +278,25 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
     <span style="font-size:20px">📋</span>リスト
   </button>
 </nav>
+
+<!-- 元請け/現場ピッカーモーダル -->
+<div id="pickerModal" class="picker-modal-bg" onclick="if(event.target===this)closePicker()">
+  <div class="picker-modal-box">
+    <div class="picker-header">
+      <b id="pickerTitle">選択</b>
+      <button type="button" onclick="closePicker()" aria-label="閉じる">✕</button>
+    </div>
+    <div style="padding:10px 12px">
+      <input type="search" id="pickerSearch" class="form-control"
+             placeholder="🔍 検索（現場名・元請名・工番）"
+             oninput="filterPickerList()" style="margin:0">
+    </div>
+    <div id="pickerList" class="picker-list"></div>
+    <div class="picker-footer">
+      マスタにない場合は <b>✕</b> で閉じて手入力欄に直接記入してください
+    </div>
+  </div>
+</div>
 
 <script>
 // ================================================================
@@ -333,90 +381,137 @@ async function loadMaster() {
 }
 
 function renderMasterDatalists() {
-  // 元請プルダウン(重複排除)
-  const motoukeSel = document.getElementById('fMotoukeSelect');
-  const names = [...new Set(motoukeMaster.map(m => m.name).filter(Boolean))].sort();
-  motoukeSel.innerHTML = '<option value="">▼ マスタから選択</option>' +
-    names.map(n => `<option value="${escAttr(n)}">${esc(n)}</option>`).join('');
-
-  // 現場プルダウン(最初は全件)
-  updateGenbaSelect('');
+  // 検索モーダル方式なので描画不要。初期状態だけマスタ件数を更新
+  // (将来、よく使う現場をサジェストするなどの拡張ポイント)
 }
 
-// 元請に応じて現場プルダウンを絞り込み
-function updateGenbaSelect(motoukeFilter) {
-  const sel = document.getElementById('fGenbaSelect');
-  const list = motoukeFilter
-    ? genbaMaster.filter(g => g.motouke === motoukeFilter)
-    : genbaMaster;
-  const seen = new Set();
-  const options = list.map(g => {
-    const key = g.motouke + '|' + g.genba;
-    if (seen.has(key)) return '';
-    seen.add(key);
-    // 元請フィルタなしの時は現場名の後に元請名を併記(例: "○○邸 [○○建設]")
-    const label = motoukeFilter ? g.genba : `${g.genba} [${g.motouke}]`;
-    const payload = JSON.stringify({ motouke:g.motouke, genba:g.genba, jobNo:g.jobNo });
-    return `<option value='${escAttr(payload)}'>${esc(label)}</option>`;
-  }).join('');
-  sel.innerHTML = '<option value="">▼ マスタから選択</option>' + options;
+// ================================================================
+// 検索可能な元請/現場ピッカー(モーダル)
+// ================================================================
+let pickerMode = '';    // 'motouke' | 'genba'
+let pickerItems = [];   // 現在表示中の候補配列
+
+function openPicker(mode) {
+  pickerMode = mode;
+  const title = mode === 'motouke' ? '元請けを選択' : '現場を選択';
+  document.getElementById('pickerTitle').textContent = title;
+  document.getElementById('pickerSearch').value = '';
+  document.getElementById('pickerModal').classList.add('show');
+  filterPickerList();
+  // 自動フォーカスは一部スマホでキーボードがすぐ出るのを嫌う場合があるため、控えめに遅延
+  setTimeout(() => {
+    const s = document.getElementById('pickerSearch');
+    if (s && window.innerWidth > 600) s.focus();
+  }, 100);
 }
 
-// 元請/現場の連動セットアップ
-function setupMotoukeGenbaAutoFill() {
-  const mSel    = document.getElementById('fMotoukeSelect');
-  const mInput  = document.getElementById('fMotouke');
-  const gSel    = document.getElementById('fGenbaSelect');
-  const gInput  = document.getElementById('fGenba');
-  const badge   = document.getElementById('jobNoBadge');
-  const badgeTx = document.getElementById('jobNoText');
+function closePicker() {
+  document.getElementById('pickerModal').classList.remove('show');
+}
 
-  const showJob = jobNo => {
-    if (jobNo) { badgeTx.textContent = jobNo; badge.style.display = 'block'; }
-    else       { badge.style.display = 'none'; }
-  };
+function filterPickerList() {
+  const q = document.getElementById('pickerSearch').value.trim().toLowerCase();
+  const list = document.getElementById('pickerList');
 
-  // 元請プルダウン変更 → 手入力欄にセット + 現場プルダウンを絞る
-  mSel.addEventListener('change', () => {
-    const v = mSel.value;
-    if (v) {
-      mInput.value = v;
-      updateGenbaSelect(v);
-      gSel.value = '';
+  // 現場ピッカー時、元請けが既に入力されていればそれで絞り込み(文字一致優先)
+  const motoukeFilter = pickerMode === 'genba'
+    ? document.getElementById('fMotouke').value.trim()
+    : '';
+
+  let items = [];
+  if (pickerMode === 'motouke') {
+    const names = [...new Set(motoukeMaster.map(m => m.name).filter(Boolean))].sort();
+    items = names
+      .filter(n => !q || n.toLowerCase().includes(q))
+      .map(n => ({ main:n, sub:'', jobNo:'', payload:{ motouke:n } }));
+  } else {
+    const source = motoukeFilter
+      ? genbaMaster.filter(g => g.motouke === motoukeFilter)
+      : genbaMaster;
+    items = source
+      .filter(g => {
+        if (!q) return true;
+        return g.genba.toLowerCase().includes(q)
+            || g.motouke.toLowerCase().includes(q)
+            || (g.jobNo || '').toLowerCase().includes(q);
+      })
+      .map(g => ({
+        main:   g.genba,
+        sub:    g.motouke,
+        jobNo:  g.jobNo || '',
+        payload:{ motouke:g.motouke, genba:g.genba, jobNo:g.jobNo || '' },
+      }));
+  }
+  pickerItems = items;
+
+  if (!items.length) {
+    list.innerHTML = `<div class="picker-empty">
+      ${q ? '「'+esc(q)+'」に一致する項目が見つかりませんでした' : 'マスタが空です'}<br>
+      <span style="font-size:11px">✕ で閉じて手入力できます</span>
+    </div>`;
+    return;
+  }
+
+  // 表示上限(検索ないときの初期表示は300件まで)
+  const shown = q ? items : items.slice(0, 300);
+  list.innerHTML = shown.map((it, i) => `
+    <div class="picker-item" onclick="pickItem(${i})">
+      <div class="p-main">${esc(it.main)}${it.jobNo ? `<span class="p-jobno">${esc(it.jobNo)}</span>` : ''}</div>
+      ${it.sub ? `<div class="p-sub">👔 ${esc(it.sub)}</div>` : ''}
+    </div>
+  `).join('') + (items.length > shown.length
+    ? `<div class="picker-empty" style="padding:14px;color:#9ca3af;font-size:11px">…他${items.length - shown.length}件 (検索で絞り込めます)</div>`
+    : '');
+}
+
+function pickItem(idx) {
+  const p = pickerItems[idx]?.payload;
+  if (!p) return;
+  const mInput = document.getElementById('fMotouke');
+  const gInput = document.getElementById('fGenba');
+  const badge  = document.getElementById('jobNoBadge');
+  const bText  = document.getElementById('jobNoText');
+
+  if (pickerMode === 'motouke') {
+    // 元請けが変わった場合は現場もクリア(整合性保持)
+    if (mInput.value.trim() !== p.motouke) {
       gInput.value = '';
-      showJob('');
+      badge.style.display = 'none';
     }
-  });
-
-  // 現場プルダウン変更 → 元請・現場・工番をセット
-  gSel.addEventListener('change', () => {
-    const v = gSel.value;
-    if (!v) return;
-    try {
-      const d = JSON.parse(v);
-      mInput.value = d.motouke || mInput.value;
-      gInput.value = d.genba;
-      // 元請プルダウンも合わせて選択状態にする
-      [...mSel.options].forEach(o => { if (o.value === d.motouke) mSel.value = d.motouke; });
-      showJob(d.jobNo);
-    } catch (e) {
-      console.warn('genba select parse error', e);
+    mInput.value = p.motouke;
+  } else {
+    mInput.value = p.motouke;
+    gInput.value = p.genba;
+    if (p.jobNo) {
+      bText.textContent = p.jobNo;
+      badge.style.display = 'block';
+    } else {
+      badge.style.display = 'none';
     }
-  });
+  }
+  closePicker();
+}
 
-  // 手入力で元請/現場を書き換えたら工番バッジは消す(マスタと一致しなくなるので)
-  mInput.addEventListener('input', () => {
+// 手入力の変更で工番バッジを更新(マスタと一致する時だけ表示)
+function setupMotoukeGenbaAutoFill() {
+  const mInput = document.getElementById('fMotouke');
+  const gInput = document.getElementById('fGenba');
+  const badge  = document.getElementById('jobNoBadge');
+  const bText  = document.getElementById('jobNoText');
+
+  const refreshJobNo = () => {
     const m = mInput.value.trim();
     const g = gInput.value.trim();
     const hit = genbaMaster.find(x => x.motouke === m && x.genba === g);
-    showJob(hit ? hit.jobNo : '');
-  });
-  gInput.addEventListener('input', () => {
-    const m = mInput.value.trim();
-    const g = gInput.value.trim();
-    const hit = genbaMaster.find(x => x.motouke === m && x.genba === g);
-    showJob(hit ? hit.jobNo : '');
-  });
+    if (hit && hit.jobNo) {
+      bText.textContent = hit.jobNo;
+      badge.style.display = 'block';
+    } else {
+      badge.style.display = 'none';
+    }
+  };
+  mInput.addEventListener('input', refreshJobNo);
+  gInput.addEventListener('input', refreshJobNo);
 }
 
 function escAttr(s) { return String(s||'').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/'/g, '&#39;'); }
@@ -621,11 +716,9 @@ function resetForm() {
   document.getElementById('uploadSection').style.display = 'block';
   document.getElementById('previewWrap').classList.remove('show');
   ['fAmount','fStore','fMemo','fMotouke','fGenba'].forEach(id => document.getElementById(id).value='');
-  ['fMotoukeSelect','fGenbaSelect'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('fDate').value = today();
   document.getElementById('fTax').value = '10';
   document.getElementById('jobNoBadge').style.display = 'none';
-  updateGenbaSelect(''); // 現場プルダウンを全件に戻す
   hideBanner();
   document.querySelectorAll('.auto-filled').forEach(el => el.classList.remove('auto-filled'));
   document.querySelectorAll('input[type=file]').forEach(i => i.value='');
