@@ -419,8 +419,39 @@ function toggleAlloc(company, checked) {
 function setAllocValue(company, value) {
   allocData[company] = allocData[company] || { checked: true, value: 0 };
   allocData[company].value = Number(value) || 0;
+
+  // 2社チェック時のみ、もう片方に残りを自動入力
+  const checked = Object.entries(allocData).filter(([_, d]) => d.checked);
+  if (checked.length === 2) {
+    const other = checked.find(([c, _]) => c !== company);
+    if (other) {
+      const [otherC] = other;
+      const total = Number(document.getElementById('fAmount').value || 0);
+      const curVal = Number(value) || 0;
+      let remainder;
+      if (allocMode === 'pct') {
+        remainder = Math.max(0, 100 - curVal);
+      } else {
+        remainder = Math.max(0, total - curVal);
+      }
+      allocData[otherC].value = remainder;
+      // 相手側のinputフィールドと単位表示を更新(フォーカスは奪わない)
+      const otherInput = document.querySelector(`#ali-${CSS.escape(otherC)}`);
+      if (otherInput) otherInput.value = remainder;
+      const otherSide = document.querySelector(`#alc-${CSS.escape(otherC)}`).closest('.alloc-company').querySelector('.cside');
+      if (otherSide) {
+        if (total > 0 && remainder > 0) {
+          if (allocMode === 'pct') otherSide.textContent = '¥' + Math.round(total * remainder / 100).toLocaleString();
+          else                     otherSide.textContent = (remainder / total * 100).toFixed(1) + '%';
+        } else {
+          otherSide.textContent = allocMode === 'pct' ? '%' : '円';
+        }
+      }
+    }
+  }
+
   updateAllocTotal();
-  // sideText更新(全体再描画はフォーカス外れるので避ける→部分更新)
+  // 自分側の単位表示更新(フォーカス維持のため部分更新)
   const total = Number(document.getElementById('fAmount').value || 0);
   const sideEl = document.querySelector(`#alc-${CSS.escape(company)}`).closest('.alloc-company').querySelector('.cside');
   if (total > 0 && Number(value) > 0) {
