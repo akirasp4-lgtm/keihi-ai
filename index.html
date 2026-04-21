@@ -113,6 +113,10 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
     <label class="form-label req">氏名</label>
     <input type="text" class="form-control" id="userName" placeholder="山田 太郎"
            oninput="localStorage.setItem('user_name_v6', this.value)">
+    <div style="font-size:11px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;
+                border-radius:6px;padding:8px 10px;margin-top:-4px;line-height:1.5">
+      ⚠️ <b>フルネーム</b>で入力してください（予定管理アプリでは苗字被り対策で省略表記になっているため、経費ではフルネームで統一します）
+    </div>
   </div>
 
   <!-- 入力タブ -->
@@ -185,15 +189,21 @@ body{font-family:-apple-system,sans-serif;background:#f0f4f8;color:var(--gray-80
           <input type="text" class="form-control" id="fStore" placeholder="例：コーナン">
 
           <div class="genba-section">
+            <div id="masterStatus" style="font-size:11px;color:#6b7280;margin-bottom:6px">予定管理マスタを読込中…</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
               <div>
                 <label class="form-label req">元請け名</label>
-                <input type="text" class="form-control" id="fMotouke" placeholder="例：〇〇建設">
+                <input type="text" class="form-control" id="fMotouke" list="motoukeList" placeholder="例：〇〇建設" autocomplete="off">
+                <datalist id="motoukeList"></datalist>
               </div>
               <div>
                 <label class="form-label req">現場名</label>
-                <input type="text" class="form-control" id="fGenba" placeholder="例：〇〇邸">
+                <input type="text" class="form-control" id="fGenba" list="genbaList" placeholder="例：〇〇邸" autocomplete="off">
+                <datalist id="genbaList"></datalist>
               </div>
+            </div>
+            <div id="jobNoBadge" style="display:none;font-size:11px;color:#16a34a;margin-top:6px">
+              🔖 工番: <b id="jobNoText"></b>
             </div>
           </div>
 
@@ -264,11 +274,131 @@ const CAT_MAP = {
 let expenses = (() => { try { return JSON.parse(localStorage.getItem('exp_v6') || '[]'); } catch { return []; } })();
 let currentImg = null;
 
+// 予定管理マスタ(元請/現場)
+let motoukeMaster = [];   // [{name, company}]
+let genbaMaster   = [];   // [{motouke, genba, jobNo, division, company}]
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('userName').value = localStorage.getItem('user_name_v6') || '';
   document.getElementById('fDate').value = today();
   renderList();
+  loadMaster();
+  setupMotoukeGenbaAutoFill();
 });
+
+// ================================================================
+// 予定管理マスタの読み込み
+// ================================================================
+async function loadMaster() {
+  const status = document.getElementById('masterStatus');
+  try {
+    const res = await fetch(WORKER_URL + '/master', { method: 'GET' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    motoukeMaster = data.motouke || [];
+    genbaMaster   = data.genba   || [];
+
+    // 24時間キャッシュ(オフライン時フォールバック用)
+    try {
+      localStorage.setItem('master_cache_v1', JSON.stringify({ ts: Date.now(), motoukeMaster, genbaMaster }));
+    } catch {}
+
+    renderMasterDatalists();
+    status.textContent = `✅ マスタ読込完了 (元請${motoukeMaster.length}件 / 現場${genbaMaster.length}件)`;
+    status.style.color = '#16a34a';
+  } catch (err) {
+    console.warn('[master] 取得失敗 → キャッシュ or 手入力', err);
+    // キャッシュを試す
+    try {
+      const cached = JSON.parse(localStorage.getItem('master_cache_v1') || 'null');
+      if (cached && cached.motoukeMaster) {
+        motoukeMaster = cached.motoukeMaster;
+        genbaMaster   = cached.genbaMaster || [];
+        renderMasterDatalists();
+        const ageH = Math.round((Date.now() - cached.ts) / 3600000);
+        status.textContent = `⚠️ オフライン: キャッシュを使用中 (${ageH}時間前)`;
+        status.style.color = '#b45309';
+        return;
+      }
+    } catch {}
+    status.textContent = '⚠️ マスタ取得失敗。手入力してください';
+    status.style.color = '#dc2626';
+  }
+}
+
+function renderMasterDatalists() {
+  // 元請は重複排除
+  const motoukeNames = [...new Set(motoukeMaster.map(m => m.name).filter(Boolean))];
+  const motoukeHtml = motoukeNames.map(n => `<option value="${escAttr(n)}">`).join('');
+  document.getElementById('motoukeList').innerHTML = motoukeHtml;
+
+  // 現場は最初は全件(後で元請に応じて絞る)
+  updateGenbaDatalist('');
+}
+
+function updateGenbaDatalist(motoukeFilter) {
+  const list = motoukeFilter
+    ? genbaMaster.filter(g => g.motouke === motoukeFilter)
+    : genbaMaster;
+  // 同じ現場名が複数元請にまたがる場合に備えて、表示テキストに元請を含める
+  const seen = new Set();
+  const html = list.map(g => {
+    if (seen.has(g.genba)) return '';
+    seen.add(g.genba);
+    const label = motoukeFilter ? g.genba : `${g.genba}｜${g.motouke}`;
+    return `<option value="${escAttr(g.genba)}" label="${escAttr(label)}">`;
+  }).join('');
+  document.getElementById('genbaList').innerHTML = html;
+}
+
+// 元請/現場入力時の連動(現場→元請は自動入力、元請→現場はフィルタ)
+function setupMotoukeGenbaAutoFill() {
+  const mInput = document.getElementById('fMotouke');
+  const gInput = document.getElementById('fGenba');
+  const jobBadge = document.getElementById('jobNoBadge');
+  const jobText  = document.getElementById('jobNoText');
+
+  const syncFromGenba = () => {
+    const g = gInput.value.trim();
+    if (!g) { jobBadge.style.display = 'none'; return; }
+    // 現場名が一意に決まる場合のみ元請と工番を自動入力
+    const hits = genbaMaster.filter(x => x.genba === g);
+    if (hits.length === 1) {
+      if (!mInput.value.trim()) mInput.value = hits[0].motouke;
+      if (hits[0].jobNo) {
+        jobText.textContent = hits[0].jobNo;
+        jobBadge.style.display = 'block';
+      } else {
+        jobBadge.style.display = 'none';
+      }
+    } else if (hits.length > 1) {
+      // 元請がすでに入っていれば絞り込み
+      const narrowed = hits.filter(x => x.motouke === mInput.value.trim());
+      if (narrowed.length === 1 && narrowed[0].jobNo) {
+        jobText.textContent = narrowed[0].jobNo;
+        jobBadge.style.display = 'block';
+      } else {
+        jobBadge.style.display = 'none';
+      }
+    } else {
+      jobBadge.style.display = 'none';
+    }
+  };
+
+  const syncFromMotouke = () => {
+    updateGenbaDatalist(mInput.value.trim());
+    syncFromGenba();
+  };
+
+  mInput.addEventListener('input',  syncFromMotouke);
+  mInput.addEventListener('change', syncFromMotouke);
+  gInput.addEventListener('input',  syncFromGenba);
+  gInput.addEventListener('change', syncFromGenba);
+}
+
+function escAttr(s) { return String(s||'').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 
 
 // ================================================================
@@ -432,6 +562,10 @@ async function saveExpense() {
   const taxRate = document.getElementById('fTax').value;
   const catInfo = CAT_MAP[cat] || { account:cat, sub:'', tax:taxRate };
 
+  // 予定管理マスタから工番を逆引き(元請+現場が一致するもの)
+  const jobNoHit = genbaMaster.find(g => g.motouke === motouke && g.genba === genba);
+  const jobNo = jobNoHit ? jobNoHit.jobNo : '';
+
   const thumb = await makeThumbnail(currentImg);
   expenses.unshift({
     id:        Date.now(),
@@ -444,6 +578,7 @@ async function saveExpense() {
     tax:       taxRate,
     motouke:   motouke,
     genba:     genba,
+    jobNo:     jobNo,
     memo:      document.getElementById('fMemo').value.trim(),
     name,
     img:       thumb,
@@ -467,6 +602,8 @@ function resetForm() {
   ['fAmount','fStore','fMemo','fMotouke','fGenba'].forEach(id => document.getElementById(id).value='');
   document.getElementById('fDate').value = today();
   document.getElementById('fTax').value = '10';
+  document.getElementById('jobNoBadge').style.display = 'none';
+  updateGenbaDatalist(''); // 現場リストを全件に戻す
   hideBanner();
   document.querySelectorAll('.auto-filled').forEach(el => el.classList.remove('auto-filled'));
   document.querySelectorAll('input[type=file]').forEach(i => i.value='');

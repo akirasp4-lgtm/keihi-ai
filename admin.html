@@ -176,6 +176,8 @@ function renderBoard() {
                   <div style="font-size:11px;color:var(--primary);margin-top:4px">${esc(i.category)} · ${i.tax||'10'}%</div>
                   ${i.motouke||i.genba
                     ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">${esc(i.motouke)} / ${esc(i.genba)}</div>` : ''}
+                  ${i.jobNo
+                    ? `<div style="font-size:11px;color:#7c3aed;margin-top:2px">🔖 ${esc(i.jobNo)}</div>` : ''}
                 </div>
               </div>`).join('')}
           </div>
@@ -243,10 +245,12 @@ function exportJDL() {
   };
 
   // ===== 先頭3行(コメント+空行) + 4行目に列タイトル =====
+  // 3行目はExcelで再保存すると空行として削除されることがあるため、
+  // 先頭列に半角スペースを入れて行を確実に保持する
   const rows = [
     pad30(`// 0002 株式会社グローライズ 令和 ${reiwaY}年 3月31日決算`),
     pad30(`// 出力期間 ： ${fyStart} ～ ${fyEnd} `),
-    ','.repeat(29),
+    ' ' + ','.repeat(29),
     '//識別フラグ,伝番,日付,借方科目,借方科目名称,借方科目正式名称,借方補助,借方補助名称,借方課区,借方税区,借方税入力方法,借方金額,借方消費税,貸方科目,貸方科目名称,貸方科目正式名称,貸方補助,貸方補助名称,貸方課区,貸方税区,貸方税入力方法,貸方金額,貸方消費税,摘要,借方取引科目,貸方取引科目,借方部門コード,借方部門名称,貸方部門コード,貸方部門名称',
   ];
 
@@ -267,11 +271,12 @@ function exportJDL() {
     const taxMethod = taxRate === 0 ? '' : '内税';
     const dateJdl   = (e.date || '').replace(/-/g, '');
 
-    // 摘要: 店名 [元請け/現場] メモ (申請者)
+    // 摘要: 店名 [元請け/現場] 工番 メモ (申請者)
     let tekiyou = e.store || '';
     if (e.motouke || e.genba) tekiyou += ` [${e.motouke||''}/${e.genba||''}]`;
-    if (e.memo) tekiyou += ` ${e.memo}`;
-    if (e.name) tekiyou += ` (${e.name})`;
+    if (e.jobNo) tekiyou += ` #${e.jobNo}`;
+    if (e.memo)  tekiyou += ` ${e.memo}`;
+    if (e.name)  tekiyou += ` (${e.name})`;
 
     rows.push([
       '1000',         // 1 識別フラグ
