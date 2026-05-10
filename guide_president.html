@@ -74,7 +74,7 @@ a{color:var(--primary);font-weight:700}
       <tr><td>氏名</td><td>フルネーム入力</td><td><b>小林社長</b>で固定</td></tr>
       <tr><td>元請け・現場</td><td>必須</td><td><b>不要</b></td></tr>
       <tr><td>支払元</td><td>-</td><td><b>現金 / GRアメックス / GRHDアメックス</b></td></tr>
-      <tr><td>按分</td><td>-</td><td><b>複数会社への費用振り分け</b></td></tr>
+      <tr><td>按分</td><td>-</td><td><b>6社への費用振り分け（任意）</b></td></tr>
     </table>
   </div>
 
@@ -86,11 +86,11 @@ a{color:var(--primary);font-weight:700}
       <li><span class="step-num">2</span><span>AIが解析 → 日付・金額・店名・税率が自動入力（数秒）</span></li>
       <li><span class="step-num">3</span><span>項目（カテゴリ）を選ぶ</span></li>
       <li><span class="step-num">4</span><span><b>💳 支払元</b>を選ぶ（現金 / GR / GRHD）</span></li>
-      <li><span class="step-num">5</span><span><b>🏢 費用負担</b>は初期「按分しない」。按分したい時だけ「按分する」に切替</span></li>
+      <li><span class="step-num">5</span><span><b>🏢 按分</b>はそのまま（普通の経費）／会社にチェックを入れて%入力（按分する場合）</span></li>
       <li><span class="step-num">6</span><span>「保存して次へ」をタップ</span></li>
     </ol>
     <div class="tip" style="margin-top:12px">
-      ⚡ <b>普通の経費は「按分しない」のまま</b>でOK。会社間で割り振る時だけ「按分する」を押してください。
+      ⚡ <b>普通の経費は会社チェックなしのまま</b>でOK。按分したい時だけ会社にチェックを入れてください。
     </div>
   </div>
 
@@ -113,31 +113,41 @@ a{color:var(--primary);font-weight:700}
 
   <!-- 費用負担 -->
   <div class="card">
-    <h2>🏢 費用負担（按分する/しない）</h2>
+    <h2>🏢 費用負担（按分）</h2>
 
     <p style="font-size:13px;line-height:1.6;margin-bottom:10px">
-      2つのトグルから選ぶだけ。どちらかに切り替えます。
+      会社の<b>チェックボックスを入れたかどうか</b>で按分か通常経費かが自動判定されます。<br>
+      切替トグルはありません。
     </p>
 
     <table>
-      <tr><th>モード</th><th>動作</th></tr>
-      <tr><td><span class="btn-ex">按分しない</span>（初期）</td><td>会社情報なしの<b>通常の経費</b>として保存。事務側はそのまま使います</td></tr>
-      <tr><td><span class="btn-ex">按分する</span></td><td>6社に%で振り分ける入力UIが開く</td></tr>
+      <tr><th>状態</th><th>動作</th></tr>
+      <tr><td>会社チェック<b>すべてOFF</b></td><td>会社情報なしの<b>通常の経費</b>として保存（按分なし）</td></tr>
+      <tr><td>会社チェック<b>1社以上ON</b></td><td>その会社に<b>%で按分</b>して保存（合計100%必須）</td></tr>
     </table>
+
+    <h3 style="margin-top:16px">対象の6社（表示順）</h3>
+    <p style="font-size:13px;line-height:1.6">
+      ① グローライズ ／ ② GRHD ／ ③ 和信カインド ／ ④ ビジネスサポート ／ ⑤ ラーテル ／ ⑥ GRミツマ
+    </p>
 
     <h3 style="margin-top:16px">按分する時の操作</h3>
     <ol class="step-list">
-      <li><span class="step-num">1</span><span><b>「按分する」</b>をタップ</span></li>
-      <li><span class="step-num">2</span><span>負担する会社の<b>チェック</b>を入れる</span></li>
-      <li><span class="step-num">3</span><span>それぞれに %を入力（合計100%になるように）</span></li>
+      <li><span class="step-num">1</span><span>負担する会社の<b>チェック</b>を入れる</span></li>
+      <li><span class="step-num">2</span><span>1社の%を入力すると、<b>残り社に自動で均等分配</b>されます（端数はGRHDに寄せる）</span></li>
+      <li><span class="step-num">3</span><span>必要なら他社の%を直接書き換え</span></li>
       <li><span class="step-num">4</span><span>合計100% ✅ を確認して保存</span></li>
     </ol>
+
+    <div class="highlight" style="margin-top:12px">
+      ✨ <b>自動補完の例</b>：3社チェック中に1社目に40%と入れると、残り2社に各30%が自動で入ります（端数はGRHDが吸収）
+    </div>
 
     <h3 style="margin-top:16px">便利ボタン</h3>
     <table>
       <tr><th>ボタン</th><th>動作</th></tr>
       <tr><td><span class="btn-ex">⚖ 均等割</span></td><td>チェックした会社で均等割り（3社なら33/33/34%）</td></tr>
-      <tr><td><span class="btn-ex">🗑 クリア</span></td><td>全部未選択にする</td></tr>
+      <tr><td><span class="btn-ex">🗑 クリア</span></td><td>全部未選択にする（→ 通常経費として保存可）</td></tr>
     </table>
 
     <h3 style="margin-top:16px">最近の按分パターン</h3>
@@ -149,7 +159,7 @@ a{color:var(--primary);font-weight:700}
     <h3 style="margin-top:16px">金額指定モード</h3>
     <p style="font-size:13px;line-height:1.6">
       %ではなく<b>具体的な金額</b>で按分したい場合は「金額指定」に切替。<br>
-      例: 総額¥10,000 → GR¥3,000 / GRHD¥7,000（合計が総額と一致しないと保存不可）
+      例: 総額¥10,000 → GR¥3,000 / GRHD¥7,000（合計が総額と一致しないと保存不可。端数はGRHDに寄せる）
     </p>
   </div>
 
@@ -159,20 +169,26 @@ a{color:var(--primary);font-weight:700}
 
     <h3>例1: 普通の経費（按分しない）</h3>
     <p style="font-size:13px">
-      撮影 → 項目選択 → 💳支払元タップ → <b>按分しないまま</b>保存<br>
+      撮影 → 項目選択 → 💳支払元タップ → <b>会社にチェックを入れずに</b>保存<br>
       → 事務側は会社情報なしの通常経費として処理
     </p>
 
     <h3 style="margin-top:12px">例2: ¥10,000の会食を GR/GRHD 半々で按分</h3>
     <p style="font-size:13px">
-      撮影 → 交際費 → 💳GRアメックス → <b>「按分する」タップ</b><br>
-      → ☑GR 50%、☑GRHD 50% → 合計100% ✅ → 保存
+      撮影 → 交際費 → 💳GRアメックス →<br>
+      ☑グローライズ にチェック＋50% 入力 → ☑GRHD にチェック → 自動で50%が入る ✅ → 保存
     </p>
 
     <h3 style="margin-top:12px">例3: 3社で均等割</h3>
     <p style="font-size:13px">
-      <b>「按分する」</b> → ☑3社チェック → <span class="btn-ex">⚖均等割</span> → 保存<br>
-      （33/33/34% に自動配分）
+      ☑グローライズ／☑GRHD／☑和信カインド にチェック → <span class="btn-ex">⚖均等割</span> → 保存<br>
+      （33/33/34% に自動配分。余り1%はGRHDが吸収）
+    </p>
+
+    <h3 style="margin-top:12px">例4: 1社入力で他社に自動分配</h3>
+    <p style="font-size:13px">
+      ☑3社チェック → 1社目に40%入力 → <b>残り2社に各30%が自動入力</b><br>
+      (調整したければ他社の値を上書きできます)
     </p>
   </div>
 
@@ -201,7 +217,7 @@ a{color:var(--primary);font-weight:700}
       <li>金額が1円以上になっているか</li>
       <li>店名が入っているか</li>
       <li>💳支払元を選んでいるか</li>
-      <li>🏢費用負担（単独負担時は1社選択、按分時は合計100%/総額一致）</li>
+      <li>🏢按分 ＝ 全部チェックなしならOK。1社以上チェックしてる時は<b>合計100%（金額指定なら総額一致）</b>が必須</li>
     </ul>
   </div>
 

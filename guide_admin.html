@@ -70,7 +70,8 @@ a{color:var(--primary);font-weight:700}
       <li><span class="step-num">3</span><span>管理者画面のドロップゾーンにファイルを<b>ドラッグ＆ドロップ</b>（複数人分を一度に取り込めます）</span></li>
     </ol>
     <p style="font-size:13px;color:var(--gray-500);margin-top:12px">
-      取込後は人物ごとにレシート画像・金額・項目が一覧表示されます。金額は画面上で直接修正できます。
+      取込後は人物ごとにレシート画像・金額・項目が一覧表示されます。金額はカード上で直接修正できます。<br>
+      その他の項目を直したいときは「<b>✏️ 編集</b>」ボタンから一括編集できます（後述）。
     </p>
 
     <div class="tip" style="margin-top:12px">
@@ -78,25 +79,71 @@ a{color:var(--primary);font-weight:700}
     </div>
   </div>
 
-  <!-- 社長分の按分編集 -->
+  <!-- 写真ビューア -->
   <div class="card">
-    <h2>社長分の按分編集（新機能）</h2>
+    <h2>📸 レシート写真の見やすさ</h2>
     <p style="font-size:13px;line-height:1.6;margin-bottom:10px">
-      社長（小林社長）のレシートには<b>💳支払元</b>と<b>🏢会社按分</b>が表示されます。
-      受信後に修正したい場合は「✏️ 按分編集」ボタンで編集できます。
+      取込んだレシートはサムネイルで全体表示され、クリックすると拡大ビューアで詳細確認ができます。
     </p>
 
-    <h3>編集モーダルの使い方</h3>
+    <h3>サムネイル（一覧）</h3>
+    <ul style="font-size:13px;line-height:1.8;padding-left:20px">
+      <li>高さ <b>320px</b>でレシート全体が切れずに表示されます</li>
+      <li>クリックすると拡大ビューアが開きます</li>
+    </ul>
+
+    <h3 style="margin-top:14px">拡大ビューア</h3>
+    <table>
+      <tr><th>操作</th><th>動作</th></tr>
+      <tr><td>マウスホイール</td><td>ズームイン/アウト（PC）</td></tr>
+      <tr><td>ピンチ操作</td><td>ズームイン/アウト（タブレット/スマホ）</td></tr>
+      <tr><td>ドラッグ</td><td>画像を移動（拡大時の細部確認）</td></tr>
+      <tr><td>ダブルクリック</td><td>等倍にリセット</td></tr>
+      <tr><td>背景クリック / <kbd>ESC</kbd> / ✕ 閉じる</td><td>ビューアを閉じる</td></tr>
+    </table>
+    <div class="tip" style="margin-top:12px">
+      💡 文字が小さくて読めないレシートも、ホイールで拡大＋ドラッグで細部確認できます。
+    </div>
+  </div>
+
+  <!-- 経費の編集 -->
+  <div class="card">
+    <h2>✏️ 経費を編集（全項目）</h2>
+    <p style="font-size:13px;line-height:1.6;margin-bottom:10px">
+      取込み後にレシートカードの「<b>✏️ 編集</b>」ボタンを押すと、全項目を一括で修正できます。<br>
+      社員レコード/社長レコード問わず、<b>すべてのレシートで使えます</b>。
+    </p>
+
+    <h3>編集できる項目</h3>
+    <table>
+      <tr><th>項目</th><th>UI</th></tr>
+      <tr><td>📅 日付</td><td>日付ピッカー</td></tr>
+      <tr><td>🏪 店名</td><td>テキスト</td></tr>
+      <tr><td>💴 金額</td><td>数値（按分%は自動再計算）</td></tr>
+      <tr><td>📂 項目（カテゴリ）</td><td>14項目プルダウン</td></tr>
+      <tr><td>💰 税率</td><td>10% / 8% / 0% ラジオ</td></tr>
+      <tr><td>🏗 元請け / 📍 現場 / 🔖 工番</td><td>テキスト</td></tr>
+      <tr><td>📝 メモ</td><td>テキスト</td></tr>
+      <tr><td>💳 支払元</td><td>現金 / GR / GRHD ラジオ（任意）</td></tr>
+      <tr><td>🏢 按分</td><td>6社チェック＋%入力（任意）</td></tr>
+    </table>
+
+    <h3 style="margin-top:14px">操作の流れ</h3>
     <ol class="step-list">
-      <li><span class="step-num">1</span><span>該当レシートカードの「✏️ 按分編集」をクリック</span></li>
-      <li><span class="step-num">2</span><span>💳支払元を変更（現金/GRアメックス/GRHDアメックス）</span></li>
-      <li><span class="step-num">3</span><span>🏢会社ごとにチェック＋％入力で按分を変更</span></li>
-      <li><span class="step-num">4</span><span>合計が100%になっていることを確認（✅表示）</span></li>
+      <li><span class="step-num">1</span><span>該当レシートカードの「✏️ 編集」をクリック</span></li>
+      <li><span class="step-num">2</span><span>モーダル上部にレシート写真が表示される（クリックで拡大ビューアを開ける）</span></li>
+      <li><span class="step-num">3</span><span>必要な項目を修正</span></li>
+      <li><span class="step-num">4</span><span>按分を変える時は会社チェック＋%入力（合計100% ✅ を確認）</span></li>
       <li><span class="step-num">5</span><span>「💾 保存」ボタンで確定</span></li>
     </ol>
 
     <div class="note" style="margin-top:12px">
-      💡 金額を直接編集した場合も、按分は自動で再計算されます（％を維持、端数は最後の社に吸収）。
+      💡 <b>金額を変更した時の挙動</b>：按分%は維持され、各社の負担額（円）が自動で再計算されます。<br>
+      端数は<b>GRHD</b>に吸収（GRHDが選ばれてない場合は最後の社）。
+    </div>
+
+    <div class="tip" style="margin-top:8px">
+      🟢 <b>按分を解除したい時</b>：6社のチェックをすべて外して保存 → 通常経費として処理されます（社員と同じ扱い）。
     </div>
   </div>
 
@@ -179,10 +226,15 @@ a{color:var(--primary);font-weight:700}
       <tr><td>グローライズ_負担額 / %</td><td>各社ごとに 負担額と% の2列ずつ</td></tr>
       <tr><td>GRHD_負担額 / %</td><td>同上</td></tr>
       <tr><td>...（登場した会社ごとに追加）</td><td></td></tr>
-      <tr><td>按分未設定</td><td>按分されていないレシートは <code>⚠️要按分</code> と表示</td></tr>
-      <tr><td>申請者</td><td>小林社長（固定）</td></tr>
+      <tr><td>種別</td><td><code>按分</code>（按分あり） or <code>按分なし</code>（通常経費）</td></tr>
+      <tr><td>申請者</td><td>主に 小林社長（社長アプリからの申請）</td></tr>
       <tr><td>メモ</td><td>レシートのメモ</td></tr>
     </table>
+
+    <div class="note" style="margin-top:8px">
+      💡 列順は <code>利用日 / 利用店名 / カテゴリ / 総額 / 税率 / 支払カード / 各社_負担額 / 各社_% / 種別 / 申請者 / メモ</code>。<br>
+      登場会社が0の場合のみ、デフォルトの6社（グローライズ/GRHD/和信カインド/ビジネスサポート/ラーテル/GRミツマ）が列に並びます。
+    </div>
 
     <div class="tip" style="margin-top:12px">
       📋 月末に使える運用例:<br>
