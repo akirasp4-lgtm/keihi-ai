@@ -197,14 +197,62 @@ a{color:var(--primary);font-weight:700}
     <h2>管理者への送付</h2>
     <ol class="step-list">
       <li><span class="step-num">1</span><span>画面下の「📋 リスト」タブをタップ</span></li>
-      <li><span class="step-num">2</span><span>保存されたデータ一覧を確認（支払元と按分も表示されます）</span></li>
-      <li><span class="step-num">3</span><span>「📤 管理者に送信」をタップ</span></li>
-      <li><span class="step-num">4</span><span>「✅ Googleドライブへの送信が完了しました！」と出たら完了</span></li>
-      <li><span class="step-num">5</span><span>「リストを削除しますか？」→「OK」でリストを空にする</span></li>
+      <li><span class="step-num">2</span><span>「未送信」タブで保存データ一覧を確認（支払元と按分も表示されます）</span></li>
+      <li><span class="step-num">3</span><span>「📤 管理者に送信」をタップ → 未送信ぶんがまとめて送られます</span></li>
+      <li><span class="step-num">4</span><span>「✅ Googleドライブへ ○件 送信しました！」と出たら完了</span></li>
+      <li><span class="step-num">5</span><span>「今すぐ送信済みを削除しますか？」→ OKで未送信タブから消えます<br>（キャンセルすると「送信済み」タブに ✅ マーク付きで残ります）</span></li>
     </ol>
 
     <div class="note" style="margin-top:12px">
       💡 データはGoogleドライブの「経費申請 / <b>小林社長</b>」フォルダに自動保存されます。
+    </div>
+  </div>
+
+  <!-- 送信済みと履歴 -->
+  <div class="card">
+    <h2>📋 リストの2タブ表示（送信状態がひと目で分かる）</h2>
+    <p style="font-size:13px;line-height:1.6;margin-bottom:10px">
+      リスト画面は <b>「未送信」</b>と<b>「送信済み」</b>の2タブに分かれていて、月別の合計が見えます。
+    </p>
+    <table>
+      <tr><th>タブ</th><th>内容</th></tr>
+      <tr><td>未送信</td><td>これから送る経費。「📤 管理者に送信」で送れます</td></tr>
+      <tr><td>送信済み</td><td>送信済みの経費（グレーアウト＋✅バッジ）。あとから「🗑 送信済みをすべて削除」で一括削除できます</td></tr>
+    </table>
+    <div class="tip" style="margin-top:12px">
+      💡 リストは<b>月ごとに区切られ、月の件数・合計</b>が見出しに表示されます。
+    </div>
+  </div>
+
+  <!-- サマリータブ -->
+  <div class="card">
+    <h2>📊 サマリータブ（月別合計＆送信履歴）</h2>
+    <p style="font-size:13px;line-height:1.6;margin-bottom:10px">
+      画面下の <b>「📊 サマリー」</b> タブでは、これまで入力・送信した経費の集計を見られます。
+    </p>
+
+    <h3>上部のクイックカード</h3>
+    <table>
+      <tr><th>カード</th><th>内容</th></tr>
+      <tr><td>今月</td><td>今月の合計金額と件数</td></tr>
+      <tr><td>先月</td><td>先月の合計金額と件数</td></tr>
+      <tr><td>全期間</td><td>これまでの累計</td></tr>
+    </table>
+
+    <h3 style="margin-top:14px">月別合計（カテゴリ別）</h3>
+    <p style="font-size:13px;line-height:1.6">
+      月ごとに合計金額が表示され、その中で<b>カテゴリ別の内訳</b>も確認できます（会議費¥◯◯◯◯、交際費¥◯◯◯◯ など）。
+    </p>
+
+    <h3 style="margin-top:14px">📤 送信履歴</h3>
+    <p style="font-size:13px;line-height:1.6">
+      <b>いつ、何件、いくらを送ったか</b>が記録されます。<br>
+      「明細を見る」をタップすると、その時に送った内容（支払元・按分も含む）を1件ずつ確認できます。<br>
+      <b>リストから消したあとでも、送信履歴は残ります。</b>
+    </p>
+
+    <div class="tip" style="margin-top:12px">
+      💡 送信履歴はテキスト情報のみ（写真なし）でブラウザに保存されます。
     </div>
   </div>
 
