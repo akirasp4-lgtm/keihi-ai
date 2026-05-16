@@ -975,15 +975,12 @@ async function sendToDrive() {
     // 送信履歴を追記 (画像なし、軽量サマリーのみ保持)
     recordSendHistory(name, unsent, now);
 
-    const msg = `✅ Googleドライブへ ${unsent.length}件 送信しました！\n\n` +
-                `📋 送信済みは「送信済み」タブに残ります\n` +
-                `📊 履歴は「サマリー」タブで確認できます\n\n` +
-                `今すぐ送信済みを削除しますか？`;
-    if (confirm(msg)) {
-      expenses = expenses.filter(e => !e.sent);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
-    }
-    setListFilter('unsent');
+    alert(`✅ Googleドライブへ ${unsent.length}件 送信しました！\n\n` +
+          `📋「送信済み」タブに移動しました\n` +
+          `📊 履歴は「サマリー」タブで確認できます\n\n` +
+          `不要になったら「🗑 送信済みをすべて削除」で消せます`);
+    // 自動で送信済みタブに切替えて、移動したことを視認できるようにする
+    setListFilter('sent');
     renderList();
   } catch(err) {
     alert('送信に失敗しました。\n' + err.message);
