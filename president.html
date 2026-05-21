@@ -9,7 +9,7 @@
 <link rel="shortcut icon" href="icons/favicon.ico">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<script src="tax-detect.js"></script>
+<script src="tax-detect.js?v=2026052102"></script>
 <meta name="theme-color" content="#7c3aed">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="社長経費">
@@ -745,14 +745,10 @@ function applyParsedData(parsed) {
   const amountForTax = Number(document.getElementById('fAmount').value) || 0;
   const cls = TaxDetect.classifyTax(parsed, amountForTax);
   if (cls.kind === 'unknown') {
+    // OCRが税率を取得できなかった → ユーザーには聞かない(モーダル出さない)
+    // 保存時にカテゴリのデフォルト税率で仮セット、管理画面で「⚠ 要確認」バッジから編集
     currentTaxBreakdown = null;
     renderTaxCardCurrent();
-    if (amountForTax > 0) {
-      TaxDetect.openTaxFallbackModal(amountForTax, null, (bd) => {
-        currentTaxBreakdown = bd;
-        renderTaxCardCurrent();
-      });
-    }
   } else {
     currentTaxBreakdown = Object.assign({ source: 'ocr', confidence: parsed.confidence ?? 1 }, cls.breakdown);
     renderTaxCardCurrent();
@@ -818,9 +814,11 @@ async function saveExpense() {
 
   const catInfo = CAT_MAP[cat] || { account:cat, sub:'', tax:'10' };
 
+  // 税率内訳: OCRで取れていなければカテゴリのデフォルト税率から仮生成
+  //   source='ocr-failed' で保存 → 管理画面で「⚠ OCR読取失敗・税率要確認」バッジが出る
   let taxBreakdown = currentTaxBreakdown;
   if (!taxBreakdown) {
-    taxBreakdown = TaxDetect.buildBreakdownFromRate(amount, catInfo.tax || '10', 'manual');
+    taxBreakdown = TaxDetect.buildBreakdownFromRate(amount, catInfo.tax || '10', 'ocr-failed');
   }
   const has10 = (taxBreakdown.taxable_10 + taxBreakdown.tax_10) > 0;
   const has8  = (taxBreakdown.taxable_8  + taxBreakdown.tax_8)  > 0;

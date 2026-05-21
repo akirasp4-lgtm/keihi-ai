@@ -216,8 +216,8 @@
       el.innerHTML = `
         <div class="tax-card tax-card-unknown">
           <span class="tax-card-icon">⚠️</span>
-          <span class="tax-card-text">税率を確認してください</span>
-          <button type="button" class="tax-card-btn" data-tax-edit>選択</button>
+          <span class="tax-card-text">税率が読み取れませんでした（保存後に確認します）</span>
+          <button type="button" class="tax-card-btn" data-tax-edit>手入力</button>
         </div>`;
     } else {
       const has10 = (b.taxable_10 + b.tax_10) > 0;
