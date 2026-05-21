@@ -11,6 +11,7 @@
 <meta name="theme-color" content="#1e3a5f">
 <!-- Shift-JIS(CP932)エンコード用ライブラリ(JDL CSV取込互換) -->
 <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.2.0/encoding.min.js"></script>
+<script src="tax-detect.js"></script>
 <style>
 :root{--primary:#2563eb;--success:#16a34a;--danger:#dc2626;--bg:#f3f4f6;--card:#fff;--border:#e5e7eb;--text:#1f2937}
 body{font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px;margin:0}
@@ -107,6 +108,12 @@ body{font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px;
 // カテゴリマスタ（借方科目・補助の対応）
 // ================================================================
 // 大項目=借方科目名称(JDL短名称)  中項目=借方補助名称  (20260420更新版スペックに準拠)
+// 混在レシート時の税率セグメント別デフォルト科目
+//   軽減8%対象  = 飲食料品 → 会議費
+//   標準10%対象 = 雑貨等   → 消耗品費
+//   対象外      = メインカテゴリのまま
+const MIXED_DEFAULT_CATEGORY = { '8': '会議費', '10': '消耗品費' };
+
 const CAT_MAP = {
   '駐車場代':     { account:'旅費交通', sub:'駐車場代',     taxArea:'仕入'   },
   '仕入高':       { account:'仕入高',   sub:'',             taxArea:'仕入'   },
@@ -127,7 +134,12 @@ const CAT_MAP = {
 // ================================================================
 // 状態
 // ================================================================
-let masterData = (() => { try { return JSON.parse(localStorage.getItem('mgr_v6_data') || '[]'); } catch { return []; } })();
+let masterData = (() => {
+  try {
+    const arr = JSON.parse(localStorage.getItem('mgr_v6_data') || '[]');
+    return Array.isArray(arr) ? arr.map(e => TaxDetect.migrateExpense(e)) : [];
+  } catch { return []; }
+})();
 document.addEventListener('DOMContentLoaded', renderBoard);
 
 const dz = document.getElementById('dropZone');
@@ -145,7 +157,7 @@ async function loadFiles(files) {
       const json = JSON.parse(await f.text());
       const name = json.name || '不明';
       (json.expenses || []).forEach(e => {
-        if (!masterData.some(m => m.id === e.id)) masterData.push({ ...e, name });
+        if (!masterData.some(m => m.id === e.id)) masterData.push(TaxDetect.migrateExpense({ ...e, name }));
       });
     } catch(err) { console.error(err); alert(`${f.name} の読み込みに失敗しました。正しいJSONファイルか確認してください。`); }
   }
@@ -211,7 +223,7 @@ function renderBoard() {
                   <div style="font-weight:bold;margin:4px 0">${esc(i.store)||'店名なし'}</div>
                   <input type="number" class="amount-input" value="${i.amount}"
                          onchange="updateAmt(${i.id}, this.value)">
-                  <div style="font-size:11px;color:var(--primary);margin-top:4px">${esc(i.category)} · ${i.tax||'10'}%</div>
+                  <div style="font-size:11px;color:var(--primary);margin-top:4px">${esc(i.category)} · ${i.tax === 'mixed' ? '混在' : (i.tax==='0' ? '対象外' : (i.tax||'10')+'%')}</div>
                   ${i.motouke||i.genba
                     ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">${esc(i.motouke)} / ${esc(i.genba)}</div>` : ''}
                   ${i.jobNo
@@ -416,15 +428,21 @@ function exportJDL() {
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
 
+  // セグメントの税率に応じた借方科目を解決
+  // 混在レシートのみ MIXED_DEFAULT_CATEGORY を適用。
+  // e.categoryBySeg = { '8':'会議費', '10':'消耗品費', '0':... } で上書き可能。
+  const resolveSegCat = (e, segRate, multiSeg) => {
+    if (!multiSeg) return CAT_MAP[e.category] || { account: e.category || '諸経費', sub: '', taxArea: '仕入' };
+    const explicit = e.categoryBySeg && e.categoryBySeg[segRate];
+    const catName = explicit || MIXED_DEFAULT_CATEGORY[segRate] || e.category;
+    return CAT_MAP[catName] || { account: catName || '諸経費', sub: '', taxArea: '仕入' };
+  };
+
   masterData.forEach(e => {
-    const cat      = CAT_MAP[e.category] || { account:e.category||'諸経費', sub:'', taxArea:'仕入' };
-    const taxRate  = Number(e.tax ?? 10);
-    const taxDenom = taxRate === 0 ? 1 : 100 + taxRate;
-    // 税率0(対象外)は 課区/税区/税入力方法 をすべて空欄(サンプルCSV仕様)
-    const taxLabel  = taxRate === 0 ? '' : (taxRate === 8 ? '軽減8%' : '10%');
-    const taxArea   = taxRate === 0 ? '' : (cat.taxArea || '仕入');
-    const taxMethod = taxRate === 0 ? '' : '内税';
-    const dateJdl   = (e.date || '').replace(/-/g, '');
+    const mainCat  = CAT_MAP[e.category] || { account:e.category||'諸経費', sub:'', taxArea:'仕入' };
+    const dateJdl  = (e.date || '').replace(/-/g, '');
+    // taxBreakdown が無ければ legacy として擬似生成(読込時に migrate 済みのはずだが念のため)
+    const breakdown = e.taxBreakdown || TaxDetect.buildBreakdownFromRate(e.amount, e.tax || '10', 'legacy');
 
     // 貸方科目名称: 支払元が現金なら「現金」、カードなら「未払金」
     const kashikataMei =
@@ -450,46 +468,64 @@ function exportJDL() {
       : [{ amount: e.amount, company: '', percent: null }];
 
     rowsForExp.forEach(r => {
-      const amt = r.amount;
-      const tAmt = taxRate === 0 ? 0 : Math.floor(amt * taxRate / taxDenom);
-      let tekiyou = tekiyouBase;
-      // 按分ありの場合のみ会社+%を摘要に追加(按分なしは通常の経費扱い)
-      if (r.company && r.percent != null) {
-        tekiyou += ` 《${r.company} ${r.percent}%負担》`;
-      }
+      // 行金額に対して税率セグメントへ展開 (単一なら1セグメント、混在なら2〜)
+      // JDLの慣習: 軽減8% → 10% → 対象外 の順 (軽減税率を1行目=1110に置く)
+      const ordering = { '8':0, '10':1, '0':2 };
+      const segments = TaxDetect.expandTaxSegments(r.amount, breakdown, mainCat.taxArea || '仕入')
+        .sort((a, b) => (ordering[a.rate] ?? 9) - (ordering[b.rate] ?? 9));
+      const multiSeg = segments.length > 1;
 
-      rows.push([
-        '1000',            // 1 識別フラグ
-        '',                // 2 伝番
-        dateJdl,           // 3 日付
-        '',                // 4 借方科目コード
-        f(cat.account),    // 5 借方科目名称
-        '',                // 6 借方科目正式名称
-        '',                // 7 借方補助コード
-        f(cat.sub),        // 8 借方補助名称
-        taxArea,           // 9 借方課区
-        taxLabel,          // 10 借方税区
-        taxMethod,         // 11 借方税入力方法
-        amt,               // 12 借方金額
-        tAmt,              // 13 借方消費税
-        '',                // 14 貸方科目コード
-        kashikataMei,      // 15 貸方科目名称(現金 or 未払金)
-        '',                // 16 貸方科目正式名称
-        '',                // 17 貸方補助コード
-        '',                // 18 貸方補助名称
-        '',                // 19 貸方課区
-        '',                // 20 貸方税区
-        '',                // 21 貸方税入力方法
-        amt,               // 22 貸方金額
-        '',                // 23 貸方消費税
-        f(tekiyou),        // 24 摘要(会社名が追記される)
-        '',                // 25 借方取引科目
-        '',                // 26 貸方取引科目
-        '',                // 27 借方部門コード
-        '',                // 28 借方部門名称
-        '',                // 29 貸方部門コード
-        '',                // 30 貸方部門名称
-      ].join(','));
+      segments.forEach((seg, idx) => {
+        const isFirst = (idx === 0);
+        // JDL混在仕様: 単一=1000 / 混在の1行目=1110(貸方総額あり) / 2行目以降=1101(貸方空欄)
+        const idFlag    = multiSeg ? (isFirst ? '1110' : '1101') : '1000';
+        const kashiName = (multiSeg && !isFirst) ? '' : kashikataMei;
+        const kashiAmt  = (multiSeg && !isFirst) ? '' : r.amount;
+
+        // 混在レシートでは税率セグメントごとに借方科目を切り替え
+        // (軽減8%→会議費 / 10%→消耗品費 がデフォルト。e.categoryBySeg で上書き可能)
+        const segCat = resolveSegCat(e, seg.rate, multiSeg);
+        // 課区も解決済み科目のtaxAreaで決定 (segment.area より優先)
+        const segArea = seg.rate === '0' ? '' : (segCat.taxArea || '仕入');
+
+        let tekiyou = tekiyouBase;
+        if (r.company && r.percent != null) {
+          tekiyou += ` 《${r.company} ${r.percent}%負担》`;
+        }
+
+        rows.push([
+          idFlag,             // 1 識別フラグ
+          '',                 // 2 伝番
+          dateJdl,            // 3 日付
+          '',                 // 4 借方科目コード
+          f(segCat.account),  // 5 借方科目名称 (混在時はセグメント別)
+          '',                 // 6 借方科目正式名称
+          '',                 // 7 借方補助コード
+          f(segCat.sub),      // 8 借方補助名称 (混在時はセグメント別)
+          segArea,            // 9 借方課区
+          seg.label,         // 10 借方税区
+          seg.method,        // 11 借方税入力方法
+          seg.amount,        // 12 借方金額
+          seg.tax,           // 13 借方消費税
+          '',                // 14 貸方科目コード
+          kashiName,         // 15 貸方科目名称(1101 行は空欄)
+          '',                // 16 貸方科目正式名称
+          '',                // 17 貸方補助コード
+          '',                // 18 貸方補助名称
+          '',                // 19 貸方課区
+          '',                // 20 貸方税区
+          '',                // 21 貸方税入力方法
+          kashiAmt,          // 22 貸方金額(1101 行は空欄)
+          '',                // 23 貸方消費税
+          f(tekiyou),        // 24 摘要
+          '',                // 25 借方取引科目
+          '',                // 26 貸方取引科目
+          '',                // 27 借方部門コード
+          '',                // 28 借方部門名称
+          '',                // 29 貸方部門コード
+          '',                // 30 貸方部門名称
+        ].join(','));
+      });
     });
   });
 
@@ -563,7 +599,7 @@ function exportAmexReconcile() {
       e.store || '',
       e.category || '',
       total,
-      (e.tax || 10) + '%',
+      e.tax === 'mixed' ? '混在' : (e.tax === '0' ? '対象外' : (e.tax || 10) + '%'),
       e.paymentSource || '',
       ...cols.flatMap(c => [companyAmt[c] || '', companyPct[c] ? companyPct[c] + '%' : '']),
       kind,
@@ -605,7 +641,9 @@ function editAllocation(id) {
   const currentSrc = item.paymentSource || '';
   const currentAlloc = item.allocations || [];
   const total = Number(item.amount) || 0;
-  const currentTax = String(item.tax ?? '10');
+  editingTaxBreakdown = item.taxBreakdown
+    ? Object.assign({}, item.taxBreakdown)
+    : TaxDetect.buildBreakdownFromRate(total, String(item.tax ?? '10'), 'legacy');
 
   const paySrcRow = PAY_SOURCES.map(s =>
     `<label style="flex:1;min-width:80px;padding:8px;border:1.5px solid ${s===currentSrc?'#7c3aed':'#d1d5db'};border-radius:6px;background:${s===currentSrc?'#ede9fe':'white'};text-align:center;font-weight:700;cursor:pointer;font-size:12px">
@@ -633,13 +671,7 @@ function editAllocation(id) {
     `<option value="${esc(c)}" ${c === item.category ? 'selected' : ''}>${esc(c)}</option>`
   ).join('');
 
-  // 税率ラジオ
-  const taxRow = ['10','8','0'].map(t =>
-    `<label style="flex:1;padding:7px;border:1.5px solid ${t===currentTax?'#2563eb':'#d1d5db'};border-radius:6px;background:${t===currentTax?'#dbeafe':'white'};text-align:center;font-weight:700;cursor:pointer;font-size:12px">
-      <input type="radio" name="edtTax" value="${t}" ${t===currentTax?'checked':''} style="display:none">
-      ${t}%
-    </label>`
-  ).join('');
+  // 税率カード(クリックで内訳編集モーダル) — 描画は後段で行う
 
   // 写真サムネイル
   const photoBlock = item.img
@@ -662,7 +694,7 @@ function editAllocation(id) {
       <select id="edtCategory" style="padding:7px;border:1px solid #d1d5db;border-radius:4px;font-size:13px">${catOptions}</select>
 
       <label style="font-weight:700">💰 税率</label>
-      <div style="display:flex;gap:4px">${taxRow}</div>
+      <div id="edtTaxCard"></div>
 
       <label style="font-weight:700">🏗 元請け</label>
       <input type="text" id="edtMotouke" value="${esc(item.motouke||'')}" style="padding:7px;border:1px solid #d1d5db;border-radius:4px;font-size:13px">
@@ -692,14 +724,14 @@ function editAllocation(id) {
       });
     });
   });
-  // 税率ラジオの視覚更新
-  document.querySelectorAll('[name=edtTax]').forEach(radio => {
-    radio.addEventListener('change', () => {
-      document.querySelectorAll('[name=edtTax]').forEach(r => {
-        r.closest('label').style.background  = r.checked ? '#dbeafe' : 'white';
-        r.closest('label').style.borderColor = r.checked ? '#2563eb' : '#d1d5db';
-      });
-    });
+  // 税率カード(クリックで内訳編集モーダル)
+  renderEditTaxCard();
+  // 金額変更したら税率カードも追従描画(税込合計が変わるため)
+  document.getElementById('edtAmount').addEventListener('input', () => {
+    const newAmt = Number(document.getElementById('edtAmount').value) || 0;
+    // 金額が変わったら内訳を新金額に按分し直す(単一はそのまま再計算、混在は比率維持)
+    editingTaxBreakdown = rescaleBreakdown(editingTaxBreakdown, newAmt);
+    renderEditTaxCard();
   });
   // 入力で合計更新
   document.querySelectorAll('.edt-chk, .edt-val').forEach(el => el.addEventListener('input', updateEditTotal));
@@ -734,7 +766,11 @@ function saveAllocEdit() {
   const newStore    = document.getElementById('edtStore').value.trim();
   const newAmount   = Number(document.getElementById('edtAmount').value);
   const newCategory = document.getElementById('edtCategory').value;
-  const newTax      = (document.querySelector('[name=edtTax]:checked') || {}).value || '10';
+  const newBreakdown = rescaleBreakdown(editingTaxBreakdown, newAmount);
+  const has10 = (newBreakdown.taxable_10 + newBreakdown.tax_10) > 0;
+  const has8  = (newBreakdown.taxable_8  + newBreakdown.tax_8)  > 0;
+  const has0  = newBreakdown.taxable_0 > 0;
+  const newTax = (has10 && has8) ? 'mixed' : has8 ? '8' : has10 ? '10' : has0 ? '0' : '10';
   const newMotouke  = document.getElementById('edtMotouke').value.trim();
   const newGenba    = document.getElementById('edtGenba').value.trim();
   const newJobNo    = document.getElementById('edtJobNo').value.trim();
@@ -783,6 +819,7 @@ function saveAllocEdit() {
   item.amount        = newAmount;
   item.category      = newCategory;
   item.tax           = newTax;
+  item.taxBreakdown  = newBreakdown;
   item.motouke       = newMotouke;
   item.genba         = newGenba;
   item.jobNo         = newJobNo;
@@ -797,7 +834,47 @@ function saveAllocEdit() {
 
 function closeAllocModal() {
   editingItemId = null;
+  editingTaxBreakdown = null;
   document.getElementById('allocModal').style.display = 'none';
+}
+
+// 編集中の税率内訳
+let editingTaxBreakdown = null;
+
+function renderEditTaxCard() {
+  const amount = Number(document.getElementById('edtAmount').value) || 0;
+  TaxDetect.renderTaxCard(
+    document.getElementById('edtTaxCard'),
+    { amount, taxBreakdown: editingTaxBreakdown },
+    () => {
+      TaxDetect.openTaxFallbackModal(amount, editingTaxBreakdown, (bd) => {
+        editingTaxBreakdown = bd;
+        renderEditTaxCard();
+      });
+    }
+  );
+}
+
+// 金額変更時に breakdown を新金額へ按分し直す
+function rescaleBreakdown(b, newAmount) {
+  if (!b) return TaxDetect.buildBreakdownFromRate(newAmount, '10', 'manual');
+  const sum = (Number(b.taxable_10)||0)+(Number(b.tax_10)||0)+(Number(b.taxable_8)||0)+(Number(b.tax_8)||0)+(Number(b.taxable_0)||0);
+  if (sum <= 0) return TaxDetect.buildBreakdownFromRate(newAmount, '10', 'manual');
+  if (sum === newAmount) return b;
+  const ratio = newAmount / sum;
+  // 各区分の税込合計を新金額に按分→税抜/税額を再計算
+  const g10 = Math.floor((Number(b.taxable_10)+Number(b.tax_10)) * ratio);
+  const g8  = Math.floor((Number(b.taxable_8) +Number(b.tax_8))  * ratio);
+  const g0  = Math.max(0, newAmount - g10 - g8);
+  const t10 = Math.floor(g10 * 10 / 110);
+  const t8  = Math.floor(g8  *  8 / 108);
+  return {
+    taxable_10: g10 - t10, tax_10: t10,
+    taxable_8:  g8  - t8,  tax_8:  t8,
+    taxable_0:  g0,
+    source: 'manual',
+    confidence: 1.0,
+  };
 }
 // 背景クリックで閉じる
 document.addEventListener('click', e => {
