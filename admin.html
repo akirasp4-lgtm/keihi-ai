@@ -180,11 +180,13 @@ function renderBoard() {
 
   const total  = masterData.reduce((s,i) => s + (Number(i.amount)||0), 0);
   const people = [...new Set(masterData.map(i=>i.name))].length;
+  const taxWarn = masterData.filter(i => i.taxBreakdown && i.taxBreakdown.source !== 'ocr').length;
 
   dash.innerHTML = `
     <div class="summary-card"><div>合計金額</div><div class="summary-val">¥${total.toLocaleString()}</div></div>
     <div class="summary-card"><div>申請人数</div><div class="summary-val">${people}名</div></div>
-    <div class="summary-card"><div>証跡枚数</div><div class="summary-val">${masterData.length}枚</div></div>`;
+    <div class="summary-card"><div>証跡枚数</div><div class="summary-val">${masterData.length}枚</div></div>
+    ${taxWarn > 0 ? `<div class="summary-card" style="background:#fef2f2;border:1px solid #fecaca"><div style="color:#991b1b">⚠ 税率要確認</div><div class="summary-val" style="color:#dc2626">${taxWarn}件</div></div>` : ''}`;
 
   const grouped = {};
   masterData.forEach(i => { (grouped[i.name] = grouped[i.name]||[]).push(i); });
@@ -223,7 +225,15 @@ function renderBoard() {
                   <div style="font-weight:bold;margin:4px 0">${esc(i.store)||'店名なし'}</div>
                   <input type="number" class="amount-input" value="${i.amount}"
                          onchange="updateAmt(${i.id}, this.value)">
-                  <div style="font-size:11px;color:var(--primary);margin-top:4px">${esc(i.category)} · ${i.tax === 'mixed' ? '混在' : (i.tax==='0' ? '対象外' : (i.tax||'10')+'%')}</div>
+                  <div style="font-size:11px;color:var(--primary);margin-top:4px">
+                    ${esc(i.category)} · ${i.tax === 'mixed' ? '混在' : (i.tax==='0' ? '対象外' : (i.tax||'10')+'%')}
+                    ${(() => {
+                      const src = i.taxBreakdown?.source;
+                      if (src === 'ocr') return '';
+                      const label = src === 'legacy' ? '⚠ 旧データ・税率要確認' : '⚠ OCR読取失敗・税率要確認';
+                      return `<div style="display:inline-block;margin-left:6px;padding:2px 8px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:10px;font-size:10px;font-weight:700">${label}</div>`;
+                    })()}
+                  </div>
                   ${i.motouke||i.genba
                     ? `<div style="font-size:11px;color:#16a34a;margin-top:2px">${esc(i.motouke)} / ${esc(i.genba)}</div>` : ''}
                   ${i.jobNo
