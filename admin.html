@@ -67,7 +67,8 @@ body{font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px;
   <div class="header-title">会社経費 管理ダッシュボード</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <a href="guide_admin.html" class="btn" style="background:#1e3a5f;color:white;text-decoration:none">使い方</a>
-    <button class="btn btn-success" onclick="exportJDL()">JDL形式CSV</button>
+    <button class="btn btn-success" onclick="exportPresidentCashJDL()">社長現金（按分あり）</button>
+    <button class="btn btn-success" style="background:#15803d" onclick="exportPresidentCashJDLNoAlloc()">社長現金（按分なし）</button>
     <button class="btn" style="background:#7c3aed;color:white" onclick="exportAmexReconcile()">Amex照合CSV</button>
     <button class="btn btn-danger"  onclick="clearAll()">リセット</button>
   </div>
@@ -419,11 +420,19 @@ function deleteReceipt(id) {
 //       摘要,借方取引科目,貸方取引科目,
 //       借方部門コード,借方部門名称,貸方部門コード,貸方部門名称
 // ================================================================
-function exportJDL() {
-  if (!masterData.length) return alert('データがありません');
+// opts = { data, split, filenamePrefix, emptyMsg }
+//   data          : 出力対象の配列(省略時は masterData 全件)
+//   split         : true=按分を会社別に複数行へ分解 / false=全額1行(按分なし)
+//   filenamePrefix: ダウンロードファイル名の頭
+function exportJDL(opts) {
+  opts = opts || {};
+  const data           = opts.data || masterData;
+  const split          = opts.split !== false;        // 既定は按分あり
+  const filenamePrefix = opts.filenamePrefix || 'JDL取込';
+  if (!data.length) return alert(opts.emptyMsg || 'データがありません');
 
   // 会計年度を自動判定(4/1～翌3/31)
-  const dates = masterData.map(e => e.date).filter(Boolean).sort();
+  const dates = data.map(e => e.date).filter(Boolean).sort();
   const firstDate = new Date(dates[0] || new Date());
   const fyStartYear = firstDate.getMonth() >= 3 ? firstDate.getFullYear() : firstDate.getFullYear() - 1;
   const fyStart = `${fyStartYear}0401`;
@@ -462,7 +471,7 @@ function exportJDL() {
     return CAT_MAP[catName] || { account: catName || '諸経費', sub: '', taxArea: '仕入' };
   };
 
-  masterData.forEach(e => {
+  data.forEach(e => {
     const mainCat  = CAT_MAP[e.category] || { account:e.category||'諸経費', sub:'', taxArea:'仕入' };
     const dateJdl  = (e.date || '').replace(/-/g, '');
     // taxBreakdown が無ければ legacy として擬似生成(読込時に migrate 済みのはずだが念のため)
@@ -482,8 +491,8 @@ function exportJDL() {
     if (e.name)                tekiyouBase += ` (${e.name})`;
     if (e.paymentSource && e.paymentSource !== '現金') tekiyouBase += ` [${e.paymentSource}]`;
 
-    // 按分あり → 会社別に複数行、なし → 1行
-    const rowsForExp = (Array.isArray(e.allocations) && e.allocations.length > 0)
+    // 按分あり → 会社別に複数行、なし → 1行 (split=false なら按分を無視して全額1行)
+    const rowsForExp = (split && Array.isArray(e.allocations) && e.allocations.length > 0)
       ? e.allocations.map(a => ({
           amount:  a.amount || Math.floor(e.amount * (a.percent || 0) / 100),
           company: a.company,
@@ -569,9 +578,36 @@ function exportJDL() {
   a.href        = url;
   const d       = new Date();
   const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  a.download    = `JDL取込_${dateStr}.csv`;
+  a.download    = `${filenamePrefix}_${dateStr}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ================================================================
+// 社長の現金払い専用JDL出力(按分あり / 按分なし の2種)
+//   社長判定: name === '小林社長'(社長アプリが固定保存)
+//   現金判定: 支払元が「現金」または未選択(現金経費は支払元なしでも可)
+// ================================================================
+function presidentCashData() {
+  return masterData.filter(e =>
+    e.name === '小林社長' && (!e.paymentSource || e.paymentSource === '現金')
+  );
+}
+function exportPresidentCashJDL() {
+  exportJDL({
+    data: presidentCashData(),
+    split: true,
+    filenamePrefix: '社長現金_按分あり',
+    emptyMsg: '社長の現金払いデータがありません。\n(申請者=小林社長／支払元=現金 のレコードが対象です)',
+  });
+}
+function exportPresidentCashJDLNoAlloc() {
+  exportJDL({
+    data: presidentCashData(),
+    split: false,
+    filenamePrefix: '社長現金_按分なし',
+    emptyMsg: '社長の現金払いデータがありません。\n(申請者=小林社長／支払元=現金 のレコードが対象です)',
+  });
 }
 
 function esc(s)  { return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
