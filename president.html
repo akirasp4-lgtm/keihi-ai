@@ -258,9 +258,10 @@ body{font-family:-apple-system,sans-serif;background:#f7f5fb;color:var(--gray-80
           <div class="pay-section">
             <label class="form-label req" style="color:#92400e">💳 支払元</label>
             <div class="pay-row" id="paySourceRow">
-              <div class="pay-chip" data-source="現金" onclick="setPaySource('現金')">💴 現金</div>
-              <div class="pay-chip" data-source="GRアメックス" onclick="setPaySource('GRアメックス')">💳 GR</div>
-              <div class="pay-chip" data-source="GRHDアメックス" onclick="setPaySource('GRHDアメックス')">💳 GRHD</div>
+              <div class="pay-chip" data-source="GR現金" onclick="setPaySource('GR現金')">💴 GR現金</div>
+              <div class="pay-chip" data-source="GRHD現金" onclick="setPaySource('GRHD現金')">💴 GRHD現金</div>
+              <div class="pay-chip" data-source="GRアメックス" onclick="setPaySource('GRアメックス')">💳 GR Amex</div>
+              <div class="pay-chip" data-source="GRHDアメックス" onclick="setPaySource('GRHDアメックス')">💳 GRHD Amex</div>
             </div>
           </div>
 
@@ -383,23 +384,23 @@ const FIXED_NAME = '小林社長';
 // 按分対象会社(6社。順序は表示順)
 const COMPANIES = ['グローライズ', 'GRHD', '和信カインド', 'ビジネスサポート', 'ラーテル', 'GRミツマ'];
 
-// 支払元の選択肢
-const PAY_SOURCES = ['現金', 'GRアメックス', 'GRHDアメックス'];
+// 支払元の選択肢（現金もGR/GRHDに分けて各社請求の按分に使う）
+const PAY_SOURCES = ['GR現金', 'GRHD現金', 'GRアメックス', 'GRHDアメックス'];
 
 // 最近の按分パターンを保持するキー(直近3件)
 const RECENT_ALLOC_KEY = 'pres_recent_alloc_v1';
 
 // カテゴリマスタ(借方科目・補助との対応)
 const CAT_MAP = {
-  '駐車場代':     { account:'旅費交通', sub:'駐車場代',     tax:'10' },
+  '駐車場代':     { account:'現場旅費', sub:'駐車場代',     tax:'10' },
   '仕入高':       { account:'仕入高',   sub:'',             tax:'10' },
   'ガソリン':     { account:'車両費',   sub:'ガソリン',     tax:'10' },
   '車両関係費':   { account:'車両費',   sub:'車両関係費',   tax:'10' },
   '消耗品費':     { account:'消耗品費', sub:'',             tax:'10' },
   '事務用品':     { account:'事務用品', sub:'',             tax:'10' },
   '運賃':         { account:'運賃',     sub:'',             tax:'10' },
-  'その他交通費': { account:'旅費交通', sub:'その他交通費', tax:'10' },
-  '有料道路':     { account:'旅費交通', sub:'有料道路',     tax:'10' },
+  'その他交通費': { account:'現場旅費', sub:'その他交通費', tax:'10' },
+  '有料道路':     { account:'現場旅費', sub:'有料道路',     tax:'10' },
   '会議費':       { account:'会議費',   sub:'',             tax:'10' },
   '交際費':       { account:'交際費',   sub:'',             tax:'10' },
   '水道光熱':     { account:'水道光熱', sub:'',             tax:'10' },
@@ -423,7 +424,7 @@ let listFilter = 'unsent';            // 'unsent' | 'sent'
 let currentImg = null;
 
 // フォーム内ステート
-let paySource = '';                   // '現金' / 'GRアメックス' / 'GRHDアメックス'
+let paySource = '';                   // 'GR現金' / 'GRHD現金' / 'GRアメックス' / 'GRHDアメックス'
 let allocMode = 'pct';                // 按分時の '%指定' or '金額指定'
 let allocData = {};                   // { 'グローライズ': { checked:true, value:100 }, ... }
 // 按分する/しないは allocData のチェック状態から自動判定
@@ -982,7 +983,7 @@ function renderList() {
 
     const cards = monthItems.map(e => {
       const paySrcLabel = e.paymentSource
-        ? (e.paymentSource === '現金' ? '💴 現金' : '💳 ' + e.paymentSource.replace('アメックス', ''))
+        ? (e.paymentSource.includes('現金') ? '💴 ' + e.paymentSource : '💳 ' + e.paymentSource.replace('アメックス', ' Amex'))
         : '';
       const allocLabel = (Array.isArray(e.allocations) && e.allocations.length > 0)
         ? e.allocations.map(a => `${a.company}${a.percent}%`).join(' / ')

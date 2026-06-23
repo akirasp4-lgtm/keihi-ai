@@ -67,6 +67,7 @@ body{font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px;
   <div class="header-title">会社経費 管理ダッシュボード</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <a href="guide_admin.html" class="btn" style="background:#1e3a5f;color:white;text-decoration:none">使い方</a>
+    <button class="btn btn-success" style="background:#2563eb" onclick="exportStaffJDL()">社員JDL出力</button>
     <button class="btn btn-success" onclick="exportPresidentCashJDL()">社長現金（按分あり）</button>
     <button class="btn btn-success" style="background:#15803d" onclick="exportPresidentCashJDLNoAlloc()">社長現金（按分なし）</button>
     <button class="btn" style="background:#7c3aed;color:white" onclick="exportAmexReconcile()">Amex照合CSV</button>
@@ -120,15 +121,15 @@ body{font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px;
 const MIXED_DEFAULT_CATEGORY = { '8': '会議費', '10': '消耗品費' };
 
 const CAT_MAP = {
-  '駐車場代':     { account:'旅費交通', sub:'駐車場代',     taxArea:'仕入'   },
+  '駐車場代':     { account:'現場旅費', sub:'駐車場代',     taxArea:'仕入'   },
   '仕入高':       { account:'仕入高',   sub:'',             taxArea:'仕入'   },
   'ガソリン':     { account:'車両費',   sub:'ガソリン',     taxArea:'仕入'   },
   '車両関係費':   { account:'車両費',   sub:'車両関係費',   taxArea:'仕入'   },
   '消耗品費':     { account:'消耗品費', sub:'',             taxArea:'仕入'   },
   '事務用品':     { account:'事務用品', sub:'',             taxArea:'仕入'   },
   '運賃':         { account:'運賃',     sub:'',             taxArea:'仕入'   },
-  'その他交通費': { account:'旅費交通', sub:'その他交通費', taxArea:'仕入'   },
-  '有料道路':     { account:'旅費交通', sub:'有料道路',     taxArea:'仕入'   },
+  'その他交通費': { account:'現場旅費', sub:'その他交通費', taxArea:'仕入'   },
+  '有料道路':     { account:'現場旅費', sub:'有料道路',     taxArea:'仕入'   },
   '会議費':       { account:'会議費',   sub:'',             taxArea:'仕入'   },
   '交際費':       { account:'交際費',   sub:'',             taxArea:'仕入'   },
   '水道光熱':     { account:'水道光熱', sub:'',             taxArea:'仕入'   },
@@ -584,29 +585,116 @@ function exportJDL(opts) {
 }
 
 // ================================================================
-// 社長の現金払い専用JDL出力(按分あり / 按分なし の2種)
+// 社長の現金払い専用出力
 //   社長判定: name === '小林社長'(社長アプリが固定保存)
-//   現金判定: 支払元が「現金」または未選択(現金経費は支払元なしでも可)
+//   現金判定: 支払元が「GR現金 / GRHD現金 / 現金(旧データ)」または未選択
+//   ・按分あり = 各社請求額計算用の照合CSV(JDL形式にとらわれない)
+//   ・按分なし = 従来どおりJDL取込CSV
 // ================================================================
-function presidentCashData() {
-  return masterData.filter(e =>
-    e.name === '小林社長' && (!e.paymentSource || e.paymentSource === '現金')
-  );
+// 社員JDL出力 = 小林社長以外の全レコードをJDL取込CSVで出力
+//   社員の立替経費は現金扱い(貸方=現金)、按分なし。元請/現場/工番は摘要に入る。
+function staffData() {
+  return masterData.filter(e => e.name !== '小林社長');
 }
-function exportPresidentCashJDL() {
+function exportStaffJDL() {
   exportJDL({
-    data: presidentCashData(),
+    data: staffData(),
     split: true,
-    filenamePrefix: '社長現金_按分あり',
-    emptyMsg: '社長の現金払いデータがありません。\n(申請者=小林社長／支払元=現金 のレコードが対象です)',
+    filenamePrefix: '社員JDL取込',
+    emptyMsg: '社員の経費データがありません。\n(申請者が小林社長以外のレコードが対象です)',
   });
 }
+
+function presidentCashData() {
+  return masterData.filter(e =>
+    e.name === '小林社長' &&
+    (!e.paymentSource ||
+     e.paymentSource === '現金' ||
+     e.paymentSource === 'GR現金' ||
+     e.paymentSource === 'GRHD現金')
+  );
+}
+
+// 社長現金(按分あり)= 各社への請求額計算用の照合CSV
+//   Amex照合CSVと同様に各社の負担額・比率を展開。
+//   日付 / 借方(科目) / 借方補助 / 金額 / 各社案分額 が分かればOK。
+//   F列=支払会社(GR現金 / GRHD現金)でフィルタ可能。
+function exportPresidentCashJDL() {
+  const cashData = presidentCashData();
+  if (!cashData.length) {
+    alert('社長の現金払いデータがありません。\n(申請者=小林社長／支払元=GR現金・GRHD現金 のレコードが対象です)');
+    return;
+  }
+
+  // 登場する全会社を横並びに(無ければ従来の6社セット)
+  const companiesUsed = Array.from(new Set(
+    cashData.flatMap(e => (e.allocations || []).map(a => a.company))
+  ));
+  const cols = companiesUsed.length ? companiesUsed : COMPANIES;
+
+  // A:日付 B:借方 C:借方補助 D:金額 E:税率 F:支払会社 …各社[負担額,%]… 種別/申請者/店名/メモ
+  const header = ['日付','借方','借方補助','金額','税率','支払会社',
+                  ...cols.flatMap(c => [c + '_負担額', c + '_%']),
+                  '種別','申請者','店名','メモ'];
+
+  const f = v => {
+    const s = String(v == null ? '' : v);
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const rows = [header.map(f).join(',')];
+  cashData.forEach(e => {
+    const total = Number(e.amount) || 0;
+    const cat   = CAT_MAP[e.category] || { account: e.category || '諸経費', sub: '' };
+    const alloc = e.allocations || [];
+    const companyAmt = {};
+    const companyPct = {};
+    alloc.forEach(a => {
+      companyAmt[a.company] = a.amount || Math.floor(total * (a.percent || 0) / 100);
+      companyPct[a.company] = a.percent;
+    });
+    const kind = alloc.length ? '按分' : '按分なし';
+
+    const row = [
+      e.date || '',
+      cat.account,
+      cat.sub,
+      total,
+      e.tax === 'mixed' ? '混在' : (e.tax === '0' ? '対象外' : (e.tax || 10) + '%'),
+      e.paymentSource || '現金',
+      ...cols.flatMap(c => [companyAmt[c] || '', companyPct[c] ? companyPct[c] + '%' : '']),
+      kind,
+      e.name || '',
+      e.store || '',
+      e.memo || '',
+    ];
+    rows.push(row.map(f).join(','));
+  });
+
+  const csvText = rows.join('\r\n') + '\r\n';
+  let blob;
+  if (typeof Encoding !== 'undefined') {
+    const sjis = Encoding.convert(csvText, { to:'SJIS', from:'UNICODE', type:'array' });
+    blob = new Blob([new Uint8Array(sjis)], { type:'text/csv' });
+  } else {
+    blob = new Blob(['﻿' + csvText], { type:'text/csv;charset=utf-8' });
+  }
+  const d       = new Date();
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const a       = document.createElement('a');
+  const url     = URL.createObjectURL(blob);
+  a.href        = url;
+  a.download    = `社長現金按分_照合_${dateStr}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function exportPresidentCashJDLNoAlloc() {
   exportJDL({
     data: presidentCashData(),
     split: false,
     filenamePrefix: '社長現金_按分なし',
-    emptyMsg: '社長の現金払いデータがありません。\n(申請者=小林社長／支払元=現金 のレコードが対象です)',
+    emptyMsg: '社長の現金払いデータがありません。\n(申請者=小林社長／支払元=GR現金・GRHD現金 のレコードが対象です)',
   });
 }
 
@@ -691,7 +779,7 @@ function exportAmexReconcile() {
 // 按分編集モーダル
 // ================================================================
 const COMPANIES = ['グローライズ', 'GRHD', '和信カインド', 'ビジネスサポート', 'ラーテル', 'GRミツマ'];
-const PAY_SOURCES = ['現金', 'GRアメックス', 'GRHDアメックス'];
+const PAY_SOURCES = ['GR現金', 'GRHD現金', 'GRアメックス', 'GRHDアメックス'];
 let editingItemId = null;
 
 function editAllocation(id) {
