@@ -438,6 +438,7 @@ let motoukeMaster = [];   // [{name, company}]
 let genbaMaster   = [];   // [{motouke, genba, jobNo, division, company}]
 
 document.addEventListener('DOMContentLoaded', () => {
+  autoCleanupSent();
   document.getElementById('userName').value = localStorage.getItem('user_name_v6') || '';
   document.getElementById('fDate').value = today();
   renderTaxCardCurrent();
@@ -967,6 +968,20 @@ function del(id) {
   expenses = expenses.filter(e => e.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
   renderList();
+}
+
+// 送信から30日たった送信済みデータを起動時に自動削除（容量の上限対策）
+// 送信履歴(HISTORY_KEY)とGoogleドライブ側のデータは残る
+function autoCleanupSent() {
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const before = expenses.length;
+  expenses = expenses.filter(e => !(e.sent && (now - (e.sentAt || e.id)) > THIRTY_DAYS));
+  const removed = before - expenses.length;
+  if (removed > 0) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+    alert(`🧹 送信から1ヶ月たった送信済みデータ ${removed}件 を自動で整理しました。\n（送信履歴とGoogleドライブのデータは残っています）`);
+  }
 }
 
 function clearSent() {
