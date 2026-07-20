@@ -692,8 +692,10 @@ async function runGeminiOCR(imgSrc) {
   statusTxt.textContent = '解析中...';
   hideBanner();
 
-  const b64      = imgSrc.split(',')[1];
-  const mimeType = imgSrc.split(';')[0].split(':')[1] || 'image/jpeg';
+  // 読み取り用は縮小版を送る(無料AIの分間トークン制限対策。保存用のcurrentImgはそのまま)
+  const ocrSrc   = await shrinkForOCR(imgSrc, 1280, 0.8);
+  const b64      = ocrSrc.split(',')[1];
+  const mimeType = ocrSrc.split(';')[0].split(':')[1] || 'image/jpeg';
 
   const body = JSON.stringify({
     contents: [{
@@ -1257,6 +1259,24 @@ async function resizeImg(file, max) {
     };
     r.onerror = () => res(null);
     r.readAsDataURL(file);
+  });
+}
+
+// OCR送信用の縮小(失敗時は元画像のまま返す)
+function shrinkForOCR(src, max, q) {
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(1, max/img.width, max/img.height);
+      if (ratio >= 1) return res(src);
+      const c = document.createElement('canvas');
+      c.width  = Math.round(img.width  * ratio);
+      c.height = Math.round(img.height * ratio);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', q));
+    };
+    img.onerror = () => res(src);
+    img.src = src;
   });
 }
 </script>
